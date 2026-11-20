@@ -1,0 +1,4 @@
+ref01 = referencias/How To Create VOX STYLE Animations FAST (under 60 seconds).mp4
+ref02 = referencias/How Vox makes images look like videos.mp4
+ref03 = referencias/The SECRET behind Vox’s Editorial Style.mp4
+ref04 = referencias/VOX STYLE _ Atlantis #voxstyle #animation #vox #viral.mp4

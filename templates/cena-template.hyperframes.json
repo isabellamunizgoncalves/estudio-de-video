@@ -1,0 +1,43 @@
+{
+  "nome": "nome-da-cena",
+  "versao": "0.9.8",
+  "formato": { "largura": 1920, "altura": 1080, "fps": 30 },
+  "duracao": 10,
+  "fontes": [
+    { "familia": "Anton", "pesos": ["400"], "google": true },
+    { "familia": "Fascinate", "pesos": ["400"], "google": true },
+    { "familia": "Playfair Display", "pesos": ["400", "700", "900", "400i", "700i"], "google": true },
+    { "familia": "Special Elite", "pesos": ["400"], "google": true },
+    { "familia": "Shrikhand", "pesos": ["400"], "google": true },
+    { "familia": "Josefin Sans", "pesos": ["600", "700"], "google": true }
+  ],
+  "paleta": {
+    "cafe": "#4A2C1D",
+    "cafeRaios": "#5A3522",
+    "laranja": "#D9622B",
+    "mostarda": "#E8A33D",
+    "creme": "#F3E7CF",
+    "turquesa": "#60ACA5",
+    "gelo": "#A8D0E6",
+    "vermelhoCaixa": "#C0392B"
+  },
+  "camadas": [
+    {
+      "id": "fundo",
+      "tipo": "container",
+      "props": { "backgroundColor": "#4A2C1D", "width": "100%", "height": "100%" },
+      "filhos": [
+        { "id": "raios-sol", "tipo": "div", "props": { "class": "raios-sol", "style": { "position": "absolute", "inset": "-50%", "opacity": 0.3, "animation": "gira-raios 30s linear infinite" } } },
+        { "id": "textura-papel", "tipo": "div", "props": { "class": "paper-texture", "style": { "position": "absolute", "inset": 0, "opacity": 0.15, "mixBlendMode": "multiply" } } }
+      ]
+    }
+  ],
+  "timeline": [
+    { "tempo": 0, "acao": "iniciar", "alvo": "fundo" }
+  ],
+  "eventosSom": [],
+  "rendimento": {
+    "rascunho": { "largura": 1280, "altura": 720, "codec": "h264", "crf": 28, "preset": "fast" },
+    "final": { "largura": 1920, "altura": 1080, "codec": "h264", "crf": 18, "preset": "slow", "pixelFormat": "yuv420p", "audioCodec": "aac", "audioBitrate": "320k", "audioSampleRate": 48000 }
+  }
+}

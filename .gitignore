@@ -1,0 +1,29 @@
+# Arquivo morto local (git antigo, cópias de segurança, binários)
+_arquivo/
+
+# Ambientes Python
+.venv*/
+venv/
+__pycache__/
+*.pyc
+
+# Projetos de vídeo: só o template é versionado
+projects/*
+!projects/_templates/
+
+# Estado interno do Claude em qualquer lugar
+_CLAUDE/
+
+# Mídia pesada (fica fora do git; use Git LFS se um dia precisar)
+*.wav
+*.mp3
+*.flac
+*.mp4
+*.mov
+
+
+# Lixo
+*.tmp
+*.bak
+*~
+.DS_Store

@@ -1,0 +1,39 @@
+/* Peças-base do Rétrovisage (aprovadas no gancho de fda-2026-11-04-retrovisage02, 04/11).
+   Embutir no index.html (nunca por <link>). Movimento em js/pecas.js. */
+
+/* pálpebras: anima a variável --h (150% aberto, 0% fechado) */
+.rv-palpebra{position:absolute;inset:0;z-index:40;pointer-events:none;--h:150%;
+  background:radial-gradient(ellipse 125% var(--h) at 50% 50%, rgba(58,34,22,0) 0%, rgba(58,34,22,0) 86%, #3a2216 100%)}
+
+/* mancha de tinta violeta (encre violette) */
+.rv-mancha{position:absolute;z-index:30;transform-origin:50% 50%;visibility:hidden}
+
+/* foto com borda branca, sombra curta e retícula leve */
+.foto{position:absolute;background:#fbf8f1;padding:14px;box-shadow:6px 6px 12px rgba(0,0,0,.35)}
+.foto img,.foto video{display:block;width:100%}
+.foto .janela{position:relative;overflow:hidden}
+.foto .janela img,.foto .janela video{position:absolute}
+.foto::after{content:"";position:absolute;inset:14px;pointer-events:none;
+  background-image:radial-gradient(rgba(0,0,0,.10) 0.8px, transparent 1.2px);background-size:4px 4px;mix-blend-mode:multiply}
+.pb{filter:grayscale(1) contrast(1.08) brightness(1.02)}
+
+/* fundo com raios de sol (girar devagar: rotation linear ~1,6°/s) */
+.raios{position:absolute;left:50%;top:50%;width:3000px;height:3000px;margin:-1500px 0 0 -1500px;transform-origin:50% 50%}
+.cafe .raios{background:repeating-conic-gradient(#4A2C1D 0deg 7.5deg, #5A3522 7.5deg 15deg)}
+.creme .raios{background:repeating-conic-gradient(#F3E7CF 0deg 7.5deg, #EADBBB 7.5deg 15deg)}
+.laranja .raios{background:repeating-conic-gradient(#D9622B 0deg 7.5deg, #E2733C 7.5deg 15deg)}
+
+/* fita adesiva com bordas serrilhadas (Anton) */
+.fita{position:absolute;font-family:'Anton';color:#4A2C1D;background:#F3E7CF;padding:10px 38px 6px;line-height:1;
+  letter-spacing:.02em;white-space:nowrap;box-shadow:3px 4px 8px rgba(0,0,0,.25);
+  clip-path:polygon(0 0,100% 0,97% 12%,100% 25%,97% 38%,100% 50%,97% 62%,100% 75%,97% 88%,100% 100%,0 100%,3% 88%,0 75%,3% 62%,0 50%,3% 38%,0 25%,3% 12%)}
+
+/* três faixas da marca embaixo da palavra-chave (crescem com scaleX, cascata 0,08 s) */
+.faixas{position:absolute;height:42px}
+.faixas i{display:block;height:11px;margin-bottom:4px;transform-origin:0 50%}
+.faixas i:nth-child(1){background:#D9622B} .faixas i:nth-child(2){background:#E8A33D} .faixas i:nth-child(3){background:#60ACA5}
+
+/* papel por cima de tudo (fibra + manchas) */
+.rv-papel{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.55;z-index:50;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' seed='7'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .26  0 0 0 .55 0'/></filter><filter id='m'><feTurbulence type='fractalNoise' baseFrequency='.004' numOctaves='3' seed='3'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .42  0 0 0 0 .3  0 0 0 1.1 -.45'/></filter><rect width='100%' height='100%' filter='url(%23m)'/><rect width='100%' height='100%' filter='url(%23f)'/></svg>")}
+.rv-vinheta{position:absolute;inset:0;pointer-events:none;z-index:51;box-shadow:inset 0 0 220px rgba(40,20,10,.35)}

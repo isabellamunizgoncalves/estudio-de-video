@@ -1,0 +1,28 @@
+{
+  "formato": {
+    "largura": 1920,
+    "altura": 1080,
+    "fps": 30
+  },
+  "rendimento": {
+    "rascunho": {
+      "largura": 1280,
+      "altura": 720,
+      "codec": "h264",
+      "crf": 28,
+      "preset": "fast"
+    },
+    "final": {
+      "largura": 1920,
+      "altura": 1080,
+      "codec": "h264",
+      "crf": 18,
+      "preset": "slow",
+      "pixelFormat": "yuv420p",
+      "audioCodec": "aac",
+      "audioBitrate": "320k",
+      "audioSampleRate": 48000
+    }
+  },
+  "descricao": "Formato padrão YouTube 16:9 horizontal. Use este como base para todas as cenas."
+}

@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Radar Rétrovisage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one column of tool cards, like a phone app; the analysed video on top, similar videos below. */
+:root{
+  --bg:#f6f4f3; --card:#ffffff; --soft:#efeceb; --line:#e2dddb;
+  --fg:#1d1a19; --muted:#6f6866; --accent:#d4243a; --accent-ink:#ffffff; --good:#1f8a4c; --warn:#b26a00;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Manrope", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r:14px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#141212; --card:#1e1b1b; --soft:#2a2626; --line:#353030;
+  --fg:#f2eeed; --muted:#a59d9b; --accent:#ff4d5e; --accent-ink:#1a0306; --good:#4cc283; --warn:#f0a73a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#141212; --card:#1e1b1b; --soft:#2a2626; --line:#353030;
+  --fg:#f2eeed; --muted:#a59d9b; --accent:#ff4d5e; --accent-ink:#1a0306; --good:#4cc283; --warn:#f0a73a; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:20px 60px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+#out{display:flex;flex-direction:column;gap:18px}
+#out:empty{display:none}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:34px;height:34px;border-radius:9px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:800 18px var(--display)}
+h1{font:800 22px/1.1 var(--display);margin:0;letter-spacing:-.01em}
+h1 small{display:block;font:500 12px var(--body);color:var(--muted);letter-spacing:0}
+h2{font:700 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+button,input,select{font:inherit;color:inherit}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--soft);
+  border-radius:10px;padding:9px 12px;font-weight:600;cursor:pointer;min-height:40px}
+a.btn{text-decoration:none;color:var(--fg)}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:700}
+.btn.small{min-height:32px;padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.55;cursor:progress}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.search{display:flex;flex-wrap:wrap;gap:10px}
+.search input{flex:1 1 280px;min-width:0;border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:10px 12px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted);flex:1 1 180px;min-width:0}
+label.f input,label.f select{border:1px solid var(--line);background:var(--soft);border-radius:9px;padding:8px 10px;font-size:14px;font-weight:500;color:var(--fg)}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.msg{border-radius:10px;padding:10px 12px;font-size:14px;border:1px solid var(--line);background:var(--soft)}
+.msg.err{border-color:var(--accent);color:var(--fg)}
+.msg.err b{color:var(--accent)}
+.video{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:14px}
+@media (max-width:560px){.video{grid-template-columns:minmax(0,1fr)}}
+.thumb{position:relative;border-radius:10px;overflow:hidden;aspect-ratio:16/9;background:var(--soft);max-width:100%}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+a.thumb{display:block}
+.dur{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.78);color:#fff;font:700 12px var(--mono);padding:2px 6px;border-radius:5px}
+.vt{font:700 18px/1.25 var(--display);margin:0;text-wrap:balance;overflow-wrap:anywhere}
+.meta{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.date{display:inline-flex;gap:6px;align-items:center;font-weight:700;color:var(--fg);font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--soft);border:1px solid var(--line);border-radius:11px;padding:10px}
+.stat b{display:block;font:700 18px var(--mono);font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.hot b{color:var(--accent)}
+.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.grid4{grid-template-columns:minmax(0,1fr)}}
+.box{background:var(--soft);border:1px solid var(--line);border-radius:11px;padding:10px 12px;min-width:0}
+.box .k{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.box .v{font-weight:700;overflow-wrap:anywhere}
+.box .t{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.formula{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-weight:600;line-height:2}
+.slot{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:0 6px;font:700 12px var(--mono);letter-spacing:.04em}
+.titles{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.titles li{display:flex;gap:8px;align-items:center;justify-content:space-between;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.titles li span{min-width:0;overflow-wrap:anywhere}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-weight:600;font-size:14px;width:max-content}
+.pill b{color:var(--accent)}
+.list{display:flex;flex-direction:column;gap:12px}
+.item{display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:12px;align-items:start}
+@media (max-width:520px){.item{grid-template-columns:minmax(0,128px) minmax(0,1fr);gap:10px}.item h3{font-size:14px}}
+.item h3{font:700 15px/1.3 var(--body);margin:0 0 4px;overflow-wrap:anywhere}
+.item .meta{gap:1px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tag{font:700 11px var(--mono);border-radius:6px;padding:2px 6px;background:var(--soft);border:1px solid var(--line)}
+.tag.hot{color:var(--accent);border-color:var(--accent)}
+.new{position:absolute;left:6px;top:6px;background:var(--card);color:var(--fg);font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+#modeSeg{align-self:flex-start}
+#btnBack{font-size:14px}
+#modeSeg button{padding:8px 14px;font-size:14px}
+.tree{display:flex;flex-direction:column;gap:10px}
+.sub{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.sub h3{font:700 16px/1.3 var(--display);margin:0;overflow-wrap:anywhere}
+.micro{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.micro div{min-width:0;overflow-wrap:anywhere}
+.micro .t{font-size:13px;color:var(--muted)}
+.rank{display:flex;flex-direction:column;gap:10px}
+.rk{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.rk-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start}
+.pos{width:28px;height:28px;border-radius:8px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;font:700 14px var(--mono)}
+.rk:first-child .pos{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.rk-head b{font:700 16px/1.3 var(--display);overflow-wrap:anywhere}
+.rk-head .t{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.score{font:700 20px var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.score small{display:block;font:600 10px var(--body);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.rk .best{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.rk .best b{color:var(--fg);font-weight:600}
+.skel{height:14px;border-radius:6px;background:linear-gradient(90deg,var(--soft),var(--line),var(--soft));background-size:200% 100%;animation:sh 1.2s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion: reduce){.skel{animation:none}}
+details summary{cursor:pointer;font-weight:700}
+ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+code{font:500 13px var(--mono);background:var(--soft);padding:1px 5px;border-radius:5px;overflow-wrap:anywhere}
+.foot{font-size:12px;color:var(--muted);text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:999px;font-weight:600;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="logo">R</div><h1>Radar Rétrovisage<small>Do que é o vídeo, quando saiu e o que tem parecido</small></h1></div>
+    <button class="btn small" id="btnCfg" aria-expanded="false" aria-controls="cfg">Chaves</button>
+  </header>
+
+  <section class="card" id="cfg" hidden>
+    <h2>Suas chaves (ficam só neste navegador)</h2>
+    <div class="row">
+      <label class="f">Chave da API do YouTube<input id="kYt" type="password" autocomplete="off" placeholder="AIza…"></label>
+      <label class="f">Chave do Gemini<input id="kAi" type="password" autocomplete="off" placeholder="AIza…"></label>
+    </div>
+    <div class="row">
+      <label class="f">Modelo do Gemini<input id="kModel" type="text" autocomplete="off"></label>
+      <label class="f">Língua dos títulos sugeridos
+        <select id="kLang"><option>Francês</option><option>Português</option><option>Inglês</option><option>Espanhol</option><option>Mesma do vídeo</option></select></label>
+    </div>
+    <div class="row"><button class="btn primary" id="btnSave">Salvar chaves</button><button class="btn" id="btnDemo" type="button">Ver exemplo</button><span class="hint" id="quota"></span></div>
+    <details>
+      <summary>Como criar as duas chaves (grátis)</summary>
+      <ol class="steps">
+        <li><b>YouTube:</b> entre em <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a>, crie um projeto, procure <b>YouTube Data API v3</b> e clique em <b>Ativar</b>.</li>
+        <li>Em <b>APIs e serviços → Credenciais → Criar credenciais → Chave de API</b>, copie a chave.</li>
+        <li>Na chave, em <b>Restrições de aplicativo</b>, escolha <b>Sites</b> e coloque o endereço desta página (por exemplo <code>isabellamunizgoncalves.github.io/*</code>). Assim ninguém usa sua chave em outro lugar.</li>
+        <li><b>Gemini:</b> entre em <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> e clique em <b>Criar chave de API</b>.</li>
+        <li>Cole as duas aqui e clique em <b>Salvar chaves</b>.</li>
+      </ol>
+      <p class="hint">O YouTube dá 10.000 unidades por dia. Cada análise de vídeo gasta cerca de 310 (umas 30 por dia). Cada ranking de Nicho ou Tema busca 6 opções e gasta cerca de 610 (umas 16 por dia).</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between">
+    <div class="seg" id="modeSeg" role="group" aria-label="O que você quer pesquisar">
+      <button type="button" data-mode="video" aria-pressed="true">Vídeo</button>
+      <button type="button" data-mode="tema" aria-pressed="false">Tema</button>
+      <button type="button" data-mode="nicho" aria-pressed="false">Nicho</button>
+    </div>
+    <button class="btn small" id="btnBack" type="button" hidden>← Voltar</button>
+    </div>
+    <form id="form" style="display:flex;flex-direction:column;gap:10px">
+      <div class="row" id="pathRow" hidden>
+        <label class="f">Nicho<input id="pNicho" type="text" list="nichos" autocomplete="off" placeholder="Escolha ou escreva (ex.: Finanças)"></label>
+        <label class="f"><span>Subnicho <span style="font-weight:500">(opcional)</span></span><input id="pSub" type="text" autocomplete="off" placeholder="ex.: Investimentos"></label>
+        <label class="f"><span>Micro subnicho <span style="font-weight:500">(opcional)</span></span><input id="pMicro" type="text" autocomplete="off" placeholder="ex.: Dividendos para iniciantes"></label>
+      </div>
+      <p class="hint" id="pathHint" hidden></p>
+      <div class="search">
+        <input id="q" type="text" placeholder="Cole o link de um vídeo do YouTube" aria-label="O que pesquisar">
+        <button class="btn primary" id="btnGo" type="submit">Analisar</button>
+      </div>
+    </form>
+    <datalist id="nichos">
+      <option value="Finanças"></option><option value="Nostalgia e história"></option><option value="True crime"></option>
+      <option value="Mistério e terror"></option><option value="Curiosidades"></option><option value="Tecnologia"></option>
+      <option value="Saúde e bem-estar"></option><option value="Natureza e animais"></option><option value="Carros"></option>
+      <option value="Culinária"></option><option value="Viagens"></option><option value="Esportes"></option>
+      <option value="Religião e espiritualidade"></option><option value="Desenvolvimento pessoal"></option><option value="Games"></option>
+      <option value="Celebridades e entretenimento"></option><option value="Educação"></option><option value="Negócios e empreendedorismo"></option>
+    </datalist>
+    <div class="row">
+      <label class="f">Mercado
+        <select id="market"><option value="FR">França (francês)</option><option value="BR">Brasil (português)</option><option value="US">Estados Unidos (inglês)</option><option value="ES">Espanha (espanhol)</option><option value="MX">México (espanhol)</option></select></label>
+      <label class="f">Vídeos publicados
+        <select id="period"><option value="7">na última semana</option><option value="30">no último mês</option><option value="90">nos últimos 3 meses</option><option value="365" selected>no último ano</option><option value="0">em qualquer data</option></select></label>
+      <label class="f">Duração
+        <select id="dur"><option value="any" selected>Qualquer</option><option value="long">Mais de 20 min</option><option value="medium">4 a 20 min</option><option value="short">Menos de 4 min</option></select></label>
+    </div>
+  </section>
+
+  <div id="out"></div>
+  <p class="foot">Dados do YouTube Data API. Nicho, tema e fórmula são uma leitura do Gemini: confira antes de usar.</p>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d=""){ try{ return localStorage.getItem("radar."+k) ?? d }catch{ return d } },
+  set(k, v){ try{ localStorage.setItem("radar."+k, v) }catch{} }
+};
+const DEFAULT_MODEL = "gemini-2.5-flash";
+const cfg = () => ({ yt: store.get("yt"), ai: store.get("ai"), model: store.get("model", DEFAULT_MODEL) || DEFAULT_MODEL,
+  lang: store.get("lang", "Francês"), region: ($("#market")?.value) || store.get("market", "FR") });
+
+// ---------- formatting ----------
+const nf = new Intl.NumberFormat("pt-BR", { notation:"compact", maximumFractionDigits:1 });
+const fmtN = n => n == null || isNaN(n) ? "—" : nf.format(n).replace(/\s/g,"");
+const fmtPct = n => n == null || isNaN(n) ? "—" : (n*100).toLocaleString("pt-BR",{maximumFractionDigits:2}) + "%";
+const fmtDate = iso => new Date(iso).toLocaleDateString("pt-BR",{ day:"2-digit", month:"short", year:"numeric" });
+const fmtWeekday = iso => new Date(iso).toLocaleString("pt-BR",{ weekday:"long", hour:"2-digit", minute:"2-digit" });
+function ago(iso){
+  const h = (Date.now() - new Date(iso)) / 36e5;
+  if (h < 1) return "há menos de 1 h";
+  if (h < 48) return `há ${Math.floor(h)} h`;
+  const d = Math.floor(h/24);
+  if (d < 60) return `há ${d} dias`;
+  const m = Math.floor(d/30.4);
+  if (m < 24) return `há ${m} meses`;
+  return `há ${Math.floor(d/365)} anos`;
+}
+function parseDur(iso){
+  const m = /P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(iso || "") || [];
+  const s = (+m[1]||0)*86400 + (+m[2]||0)*3600 + (+m[3]||0)*60 + (+m[4]||0);
+  const hh = Math.floor(s/3600), mm = Math.floor(s%3600/60), ss = s%60;
+  return (hh ? hh+":"+String(mm).padStart(2,"0") : mm) + ":" + String(ss).padStart(2,"0");
+}
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const hoursSince = iso => Math.max(1, (Date.now() - new Date(iso)) / 36e5);
+
+function videoId(text){
+  const t = text.trim();
+  if (/^[\w-]{11}$/.test(t)) return t;
+  const m = t.match(/(?:youtu\.be\/|v=|\/shorts\/|\/live\/|\/embed\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+
+// ---------- quota counter (estimate, per day) ----------
+function spend(units){
+  const day = new Date().toISOString().slice(0,10);
+  let used = store.get("quotaDay") === day ? +store.get("quotaUsed", "0") : 0;
+  used += units; store.set("quotaDay", day); store.set("quotaUsed", String(used)); showQuota();
+}
+function showQuota(){
+  const day = new Date().toISOString().slice(0,10);
+  const used = store.get("quotaDay") === day ? +store.get("quotaUsed","0") : 0;
+  $("#quota").textContent = `Hoje: cerca de ${used.toLocaleString("pt-BR")} de 10.000 unidades do YouTube.`;
+}
+
+
+// ---------- example mode (made-up data, no keys needed) ----------
+let DEMO = false;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function demoThumb(label, hue){
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue},45%,38%)"/><stop offset="1" stop-color="hsl(${(hue+40)%360},40%,18%)"/></linearGradient></defs><rect width="320" height="180" fill="url(#g)"/><text x="16" y="160" font-family="Georgia,serif" font-size="22" fill="#f4ede4">${label}</text><text x="16" y="30" font-family="sans-serif" font-size="12" fill="#f4ede4" opacity=".8">EXEMPLO</text></svg>`;
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
+const DEMO_VIDEOS = [
+  ["Le métro de Paris en 1950 : une journée sous terre", "Paris d'Antan", 1840000, 26, 18],
+  ["Voyager en 3e classe en 1930 : le vrai quotidien", "Mémoire de France", 412000, 3, 32],
+  ["Les Halles de Paris en 1960, le ventre qui ne dormait jamais", "Paris d'Antan", 980000, 40, 60],
+  ["Prendre le train de nuit en 1955 : souvenirs d'un voyage", "La France d'hier", 265000, 9, 120],
+  ["Le premier jour du métro parisien (1900)", "Archives Vivantes", 1520000, 75, 200],
+  ["Une journée d'école en 1960 en France", "Mémoire de France", 730000, 18, 260],
+  ["Les cafés parisiens des années 50 : ce que l'on y buvait", "La France d'hier", 145000, 2, 300],
+  ["Les tramways de Paris avant 1937", "Archives Vivantes", 330000, 12, 340]
+];
+const DEMO_CANDIDATES = { itens: [
+  { nome:{ original:"Vie quotidienne d'autrefois", pt:"Cotidiano de antigamente" }, descricao:"Como as pessoas viviam o dia a dia.", busca:"vie quotidienne autrefois" },
+  { nome:{ original:"Souvenirs des années 80", pt:"Lembranças dos anos 80" }, descricao:"Objetos, TV e costumes de uma década.", busca:"souvenirs années 80" },
+  { nome:{ original:"Paris d'antan", pt:"Paris de antigamente" }, descricao:"Lugares de Paris contados como eram.", busca:"Paris autrefois" },
+  { nome:{ original:"Métiers disparus", pt:"Profissões que sumiram" }, descricao:"Profissões que não existem mais.", busca:"métiers disparus" },
+  { nome:{ original:"École d'autrefois", pt:"Escola de antigamente" }, descricao:"Como era a escola nas décadas passadas.", busca:"école d'autrefois" },
+  { nome:{ original:"Noël d'antan", pt:"Natal de antigamente" }, descricao:"Festas e tradições de família.", busca:"Noël d'antan" }
+] };
+const DEMO_SUBS = { "Paris d'Antan": 210000, "Mémoire de France": 48000, "La France d'hier": 9500, "Archives Vivantes": 320000 };
+function demoVideo(i){
+  const [title, chan, views, days, hue] = DEMO_VIDEOS[i % DEMO_VIDEOS.length];
+  const id = "DEMO" + String(i).padStart(7, "0");
+  const thumb = demoThumb(title.split(":")[0].slice(0, 26), hue);
+  return { id, snippet:{ title, channelId: chan, channelTitle: chan, publishedAt: new Date(Date.now() - days*864e5 - 5*36e5).toISOString(),
+      description:"Exemplo inventado para mostrar a página.", tags:["paris","métro","années 50","nostalgie","histoire de france","vie quotidienne","archives"],
+      thumbnails:{ medium:{ url: thumb }, high:{ url: thumb } } },
+    statistics:{ viewCount:String(views), likeCount:String(Math.round(views*0.031)), commentCount:String(Math.round(views*0.002)) },
+    contentDetails:{ duration: ["PT18M42S","PT22M5S","PT31M10S","PT16M51S"][i % 4] } };
+}
+function demoYt(path, params){
+  if (path === "videos") return { items: params.id.split(",").map(id => demoVideo(id.startsWith("DEMO") ? +id.slice(4) : id.startsWith("P") ? 3 + (+id.slice(1) % 5) : 0))
+    .map((v, k, a) => path && params.id.split(",")[k].startsWith("P") ? { ...v, statistics:{ ...v.statistics, viewCount:String(150000 + k*20000) } } : v) };
+  if (path === "channels") return { items: params.id.split(",").map(c => ({ id:c, statistics:{ subscriberCount:String(DEMO_SUBS[c] || 10000) }, contentDetails:{ relatedPlaylists:{ uploads:"UU" } } })) };
+  if (path === "playlistItems") return { items: Array.from({ length: 15 }, (_, k) => ({ contentDetails:{ videoId: "P" + k } })) };
+  if (path === "search"){
+    const h = [...params.q].reduce((a, c) => a + c.charCodeAt(0), 0);
+    return { items: [0,1,2,3,4].map(k => ({ id:{ videoId: "DEMO" + String(1 + (h + k*3) % 7).padStart(7, "0") } })) };
+  }
+  return { items: [] };
+}
+const DEMO_ABOUT = {
+  idioma_video:"fr",
+  nicho:{ original:"Histoire de France", pt:"História da França" },
+  subnicho:{ original:"Vie quotidienne d'autrefois", pt:"Cotidiano de antigamente" },
+  micro_subnicho:{ original:"Transports parisiens d'autrefois", pt:"Transportes de Paris de antigamente" },
+  canal:{ subnicho:{ original:"Paris d'autrefois", pt:"Paris de antigamente" }, micro_subnicho:{ original:"Lieux de Paris au XXe siècle", pt:"Lugares de Paris no século XX" } },
+  tema:{ original:"Métro de Paris", pt:"Metrô de Paris" },
+  subtema:{ original:"Une journée sous terre en 1950", pt:"Um dia no subsolo em 1950" },
+  epoca:"anos 1950",
+  formula:{ texto:"Le [LUGAR] en [ANO] : une journée [DETALHE]", pt:"O [LUGAR] em [ANO]: um dia [DETALHE]" },
+  gancho:"Promete levar quem assiste para dentro de um lugar conhecido, numa época que a pessoa não viveu.",
+  buscas:["métro de Paris 1950","vie quotidienne Paris années 50","histoire du métro parisien"],
+  titulos:["Le bus parisien en 1955 : une journée à bord","La gare Saint-Lazare en 1930 : une journée sur les quais","Le marché d'Aligre en 1960 : une journée parmi les marchands","Le Bon Marché en 1925 : une journée de vendeuse","La tour Eiffel en 1950 : une journée au sommet"]
+};
+
+// ---------- APIs ----------
+class ApiError extends Error { constructor(where, msg){ super(msg); this.where = where; } }
+async function yt(path, params, units){
+  if (DEMO){ await sleep(120); return demoYt(path, params); }
+  const key = cfg().yt;
+  if (!key) throw new ApiError("YouTube", "Falta a chave da API do YouTube. Clique em Chaves.");
+  const u = new URL("https://www.googleapis.com/youtube/v3/" + path);
+  for (const [k,v] of Object.entries(params)) if (v !== undefined && v !== "") u.searchParams.set(k, v);
+  u.searchParams.set("key", key);
+  const r = await fetch(u);
+  const j = await r.json().catch(() => ({}));
+  spend(units);
+  if (!r.ok){
+    const reason = j.error?.errors?.[0]?.reason || "";
+    if (reason === "quotaExceeded") throw new ApiError("YouTube", "A cota de hoje do YouTube acabou. Ela renova à meia-noite do horário do Pacífico (5h em Brasília).");
+    if (reason === "keyInvalid" || r.status === 400 && /API key/i.test(j.error?.message||"")) throw new ApiError("YouTube", "A chave do YouTube não é válida. Confira se copiou inteira.");
+    if (r.status === 403) throw new ApiError("YouTube", "O YouTube recusou a chave: " + (j.error?.message || "confira se a YouTube Data API v3 está ativada e se o endereço desta página está nas restrições da chave."));
+    throw new ApiError("YouTube", j.error?.message || `Erro ${r.status}`);
+  }
+  return j;
+}
+async function gemini(prompt, kind = "video"){
+  if (DEMO){ await sleep(500);
+    if (kind === "candidates") return DEMO_CANDIDATES;
+    if (kind === "groupfilter") return { grupos: {}, formulas: { 0:{ texto:"Le [LIEU] en [ANNÉE] : une journée [DÉTAIL]" }, 1:{ texto:"[NOMBRE] [CHOSES] des années [DÉCENNIE] que seuls les plus de 40 ans reconnaîtront" } } };
+    if (kind === "filter") return { manter: Array.from({ length: 45 }, (_, i) => i),
+      formula_padrao:{ texto:"Le [LIEU] en [ANNÉE] : une journée [DÉTAIL]", pt:"O [LUGAR] em [ANO]: um dia [DETALHE]", exemplos:["Le métro de Paris en 1950 : une journée sous terre"] } };
+    return DEMO_ABOUT; }
+  const { ai, model } = cfg();
+  if (!ai) throw new ApiError("Gemini", "Falta a chave do Gemini. Clique em Chaves.");
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(ai)}`, {
+    method:"POST", headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ contents:[{ role:"user", parts:[{ text: prompt }] }],
+      generationConfig:{ responseMimeType:"application/json", temperature:0.4 } })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok){
+    if (r.status === 404) throw new ApiError("Gemini", `O modelo "${model}" não existe mais. Em Chaves, troque o modelo (ex.: gemini-2.5-flash ou o mais novo "flash" listado no AI Studio).`);
+    if (r.status === 429) throw new ApiError("Gemini", "O limite grátis do Gemini foi atingido por agora. Espere um minuto e tente de novo.");
+    if (r.status === 400 || r.status === 403) throw new ApiError("Gemini", "O Gemini recusou a chave: " + (j.error?.message || "confira a chave."));
+    throw new ApiError("Gemini", j.error?.message || `Erro ${r.status}`);
+  }
+  const text = j.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
+  try { return JSON.parse(text.replace(/^```(?:json)?|```$/g, "").trim()); }
+  catch { throw new ApiError("Gemini", "O Gemini respondeu num formato inesperado. Tente de novo."); }
+}
+
+async function getVideos(ids){
+  if (!ids.length) return [];
+  const out = [];
+  for (let i = 0; i < ids.length; i += 50){
+    const j = await yt("videos", { part:"snippet,statistics,contentDetails", id: ids.slice(i,i+50).join(",") }, 1);
+    out.push(...(j.items || []));
+  }
+  return out;
+}
+async function getChannels(ids){
+  const uniq = [...new Set(ids)].filter(Boolean); const map = {};
+  for (let i = 0; i < uniq.length; i += 50){
+    const j = await yt("channels", { part:"snippet,statistics,contentDetails", id: uniq.slice(i,i+50).join(",") }, 1);
+    for (const c of j.items || []) map[c.id] = c;
+  }
+  return map;
+}
+// Outlier = views of this video / median views of the channel's last 15 uploads.
+async function channelRecent(channel, exceptId){
+  const pl = channel?.contentDetails?.relatedPlaylists?.uploads;
+  if (!pl) return { median:null, titles:[] };
+  const j = await yt("playlistItems", { part:"contentDetails", playlistId: pl, maxResults: 16 }, 1);
+  const ids = (j.items || []).map(i => i.contentDetails.videoId).filter(id => id !== exceptId).slice(0,15);
+  const vids = await getVideos(ids);
+  const titles = vids.map(v => v.snippet.title);
+  const views = vids.map(v => +v.statistics.viewCount || 0).sort((a,b) => a-b);
+  if (views.length < 3) return { median:null, titles };
+  const mid = Math.floor(views.length/2);
+  return { median: views.length % 2 ? views[mid] : (views[mid-1] + views[mid]) / 2, titles };
+}
+const MARKET = { FR:{ lang:"fr", name:"francês", label:"França" }, BR:{ lang:"pt", name:"português", label:"Brasil" },
+  US:{ lang:"en", name:"inglês", label:"Estados Unidos" }, ES:{ lang:"es", name:"espanhol", label:"Espanha" }, MX:{ lang:"es", name:"espanhol", label:"México" } };
+const marketInfo = () => MARKET[cfg().region] || MARKET.FR;
+const REGION_LANG = Object.fromEntries(Object.entries(MARKET).map(([k, v]) => [k, v.lang]));
+// The title without emojis, hashtags and punctuation, cut to its first words: a search "parecida com o título".
+function titleQuery(t){
+  return String(t).replace(/#\S+/g, " ").replace(/[^\p{L}\p{N}' ]+/gu, " ").replace(/\s+/g, " ").trim().split(" ").slice(0, 8).join(" ");
+}
+async function searchVideos(query, exclude, lang, max = 20){
+  const p = cfg(); const days = +$("#period").value;
+  const params = { part:"snippet", type:"video", q: query, maxResults: max, order:"relevance",
+    regionCode: p.region || undefined, relevanceLanguage: (lang || REGION_LANG[p.region] || "").slice(0,2) || undefined,
+    videoDuration: $("#dur").value };
+  if (days) params.publishedAfter = new Date(Date.now() - days*864e5).toISOString();
+  const j = await yt("search", params, 100);
+  return (j.items || []).map(i => i.id.videoId).filter(id => id && !exclude.has(id));
+}
+
+const LEVELS = `Use esta hierarquia, do mais amplo ao mais específico:
+- nicho: a área geral (ex.: Nostalgia da França)
+- subnicho: um ramo do nicho (ex.: Cotidiano de antigamente)
+- micro_subnicho: um recorte bem específico do subnicho que dá para um canal inteiro (ex.: Transportes de Paris de antigamente)
+- tema: o assunto deste vídeo (ex.: Metrô de Paris)
+- subtema: o recorte deste vídeo (ex.: Um dia no subsolo em 1950)`;
+const titleLang = () => cfg().lang === "Mesma do vídeo" ? "no idioma do vídeo" : "em " + cfg().lang;
+function classifyPrompt(v, recentTitles){
+  const s = v.snippet;
+  return `Você analisa vídeos do YouTube para uma criadora de conteúdo brasileira que tem o canal Rétrovisage (histórias do cotidiano da França no século XX, narrado em francês).
+Leia os dados do vídeo e responda SÓ com um JSON neste formato:
+{
+ "idioma_video": "código ISO, ex.: en",
+ "nicho": {"original": "no idioma do vídeo", "pt": "em português"},
+ "subnicho": {"original": "...", "pt": "..."},
+ "micro_subnicho": {"original": "...", "pt": "..."},
+ "canal": {"subnicho": {"original": "...", "pt": "..."}, "micro_subnicho": {"original": "...", "pt": "..."}},
+ "tema": {"original": "o assunto principal, curto (ex.: Snow Leopard)", "pt": "..."},
+ "subtema": {"original": "o recorte específico deste vídeo (ex.: Silent Ambush in the Mountains)", "pt": "..."},
+ "epoca": "período histórico de que o vídeo fala (ex.: anos 1950), ou \\"atual\\" se não for histórico",
+ "formula": {"texto": "o título com as partes trocáveis entre colchetes em MAIÚSCULAS, ex.: [ANIMAL]'s Silent Ambush in the [LUGAR]", "pt": "a mesma fórmula traduzida"},
+ "gancho": "em uma frase em português: por que esse título dá vontade de clicar",
+ "buscas": ["2 buscas de 2 a 5 palavras, no idioma do vídeo, do jeito que alguém digitaria no YouTube para achar vídeos com título e assunto parecidos com este"],
+ "titulos": ["5 títulos novos que usam a mesma fórmula, ${titleLang()}, adaptados ao canal Rétrovisage quando fizer sentido"]
+}
+${LEVELS}
+"canal" descreve o canal inteiro, olhando os títulos recentes dele (não só este vídeo).
+Os rótulos devem ser curtos (até 6 palavras).
+
+Título: ${s.title}
+Canal: ${s.channelTitle}
+Títulos recentes do canal: ${(recentTitles || []).slice(0,15).join(" | ")}
+Tags: ${(s.tags || []).slice(0,30).join(", ")}
+Descrição: ${(s.description || "").slice(0,1500)}`;
+}
+
+const LEVEL_PLURAL = { "subnicho":"subnichos", "micro subnicho":"micro subnichos", "tema":"temas", "subtema":"subtemas" };
+function readPath(){
+  return { nicho: $("#pNicho").value.trim(), subnicho: $("#pSub").value.trim(), micro: $("#pMicro").value.trim(),
+    tema: mode === "tema" ? $("#q").value.trim() : "" };
+}
+function nextLevel(p){ return p.tema ? "subtema" : p.micro ? "tema" : p.subnicho ? "micro subnicho" : "subnicho"; }
+function pathText(p){
+  return [p.nicho && "Nicho: " + p.nicho, p.subnicho && "Subnicho: " + p.subnicho, p.micro && "Micro subnicho: " + p.micro, p.tema && "Tema: " + p.tema].filter(Boolean).join("\n");
+}
+function candidatesPrompt(p, level){
+  const m = marketInfo();
+  return `Você ajuda uma criadora de conteúdo brasileira a descobrir o que está rendendo no YouTube.
+Caminho escolhido por ela:
+${pathText(p)}
+Liste 6 ${LEVEL_PLURAL[level]} que existem hoje no YouTube dentro desse caminho, no mercado da ${m.label} (vídeos em ${m.name}).
+Varie bem entre eles e inclua os que você acha que mais estão crescendo agora. Os números de verdade virão de uma busca no YouTube, então não invente números.
+${LEVELS}
+Responda SÓ com um JSON:
+{"itens": [{"nome": {"original": "em ${m.name}", "pt": "em português"}, "descricao": "uma frase em português", "busca": "busca de 2 a 5 palavras em ${m.name}, do jeito que alguém digitaria no YouTube"}]}`;
+}
+function groupFilterPrompt(p, level, groups){
+  return `Você filtra resultados de busca do YouTube. Caminho:
+${pathText(p)}
+Cada grupo abaixo é um ${level} e traz os vídeos que a busca dele achou. Em cada grupo, fique só com os vídeos que são mesmo desse ${level} dentro do caminho. Tire o que for de outro assunto.
+Para cada grupo, escreva também a estrutura de título padrão dos vídeos que ficaram: o molde que mais se repete, com as partes trocáveis entre colchetes em MAIÚSCULAS.
+Responda SÓ com um JSON: {"grupos": {"0": [números que ficam], "1": [...], ...}, "formulas": {"0": {"texto": "molde no idioma dos títulos", "pt": "molde traduzido"}, "1": {...}, ...}}
+
+${groups.map((g, gi) => `Grupo ${gi}: ${g.item.nome?.original || ""}\n` + g.vids.map((v, i) => `  ${i}. ${v.snippet.title} — ${v.snippet.channelTitle}`).join("\n")).join("\n\n")}`;
+}
+function filterPrompt(context, vids){
+  return `Você filtra resultados de busca do YouTube. Queremos SÓ vídeos parecidos com isto:
+${context}
+Abaixo está a lista numerada de resultados (título — canal). Fique só com os que falam do mesmo assunto ou têm título parecido, em qualquer idioma. Tire novelas, vlogs de viagem, jogos, notícias do dia ou qualquer coisa de outro assunto.
+Depois, olhando só os títulos que ficaram, escreva a estrutura de título padrão desse tema: o molde que mais se repete, com as partes trocáveis entre colchetes em MAIÚSCULAS (ex.: [NÚMERO] [COISAS] des années [DÉCADA] que seuls les plus de 40 ans reconnaîtront).
+Responda SÓ com um JSON: {"manter": [números dos que ficam], "formula_padrao": {"texto": "o molde no idioma dos títulos", "pt": "o molde traduzido", "exemplos": ["2 títulos da lista que seguem o molde"]}}
+
+${vids.map((v, i) => `${i}. ${v.snippet.title} — ${v.snippet.channelTitle}`).join("\n")}`;
+}
+const label = o => o?.original ? (o.pt && o.pt !== o.original ? `${o.original} (${o.pt})` : o.original) : "";
+function contextOf(a, title){
+  return [title ? "Título de referência: " + title : "", a.nicho ? "Nicho: " + label(a.nicho) : "", a.subnicho ? "Subnicho: " + label(a.subnicho) : "",
+    a.micro_subnicho ? "Micro subnicho: " + label(a.micro_subnicho) : "", a.tema ? "Tema: " + label(a.tema) : "",
+    a.subtema ? "Subtema: " + label(a.subtema) : "", a.epoca && a.epoca !== "atual" ? "Época: " + a.epoca : ""].filter(Boolean).join("\n");
+}
+
+// ---------- rendering ----------
+const out = $("#out");
+let lastSimilar = [], lastRemoved = [], showRemoved = false, sortBy = "vph", mode = "video";
+
+function toast(t){
+  const el = document.createElement("div"); el.className = "toast"; el.textContent = t; el.setAttribute("role","status");
+  document.body.append(el); setTimeout(() => el.remove(), 1800);
+}
+async function copy(text, label){
+  try { await navigator.clipboard.writeText(text); toast(label + " copiado"); }
+  catch { toast("Não deu para copiar: selecione o texto e copie à mão"); }
+}
+function errBox(e){
+  const where = e instanceof ApiError ? e.where : "Erro";
+  const msg = e instanceof TypeError ? "Não consegui conectar. Confira sua internet." : e.message;
+  return `<div class="msg err" role="alert"><b>${esc(where)}:</b> ${esc(msg)}</div>`;
+}
+function thumbOf(v){ const t = v.snippet.thumbnails || {}; return (t.maxres || t.standard || t.high || t.medium || t.default || {}).url || ""; }
+
+function mainCard(v, ch, median){
+  const s = v.snippet, st = v.statistics;
+  const views = +st.viewCount || 0, likes = +st.likeCount || 0, comments = +st.commentCount || 0;
+  const vph = views / hoursSince(s.publishedAt);
+  const eng = views ? (likes + comments) / views : null;
+  const outl = median ? views / median : null;
+  const subs = ch?.statistics?.hiddenSubscriberCount ? null : +ch?.statistics?.subscriberCount;
+  return `<section class="card" id="main">
+    <div class="video">
+      <div class="thumb"><img src="${esc(thumbOf(v))}" alt=""><span class="dur">${parseDur(v.contentDetails.duration)}</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+        <p class="vt">${esc(s.title)}</p>
+        <div class="meta">
+          <span class="date">Publicado em ${fmtDate(s.publishedAt)} · ${ago(s.publishedAt)}</span>
+          <span>${esc(fmtWeekday(s.publishedAt))} (seu horário)</span>
+          <span>${esc(s.channelTitle)} · ${subs ? fmtN(subs) + " inscritos" : "inscritos ocultos"}</span>
+        </div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat ${outl >= 3 ? "hot" : ""}"><b>${outl ? outl.toLocaleString("pt-BR",{maximumFractionDigits:1}) + "×" : "—"}</b><span>outlier (vs. canal)</span></div>
+      <div class="stat"><b>${fmtN(views)}</b><span>views</span></div>
+      <div class="stat"><b>${fmtN(vph)}</b><span>VPH (views/hora)</span></div>
+      <div class="stat"><b>${fmtPct(eng)}</b><span>engajamento</span></div>
+    </div>
+    <div class="actions">
+      <a class="btn" href="${esc(thumbOf(v))}" target="_blank" rel="noopener">Capa</a>
+      <button class="btn" data-copy="title">Copiar título</button>
+      <button class="btn" data-copy="tags">Copiar tags</button>
+      <button class="btn" data-copy="desc">Copiar descrição</button>
+      <a class="btn" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener">Abrir no YouTube</a>
+      <button class="btn" data-jump="similar">Parecidas</button>
+    </div>
+    <div id="about"><h2>Do que é o vídeo</h2><div class="grid4" style="margin-top:8px">
+      ${["Nicho","Subnicho","Micro subnicho","Época","Tema","Subtema"].map(k => `<div class="box"><div class="k">${k}</div><div class="skel" style="margin-top:6px;width:70%"></div></div>`).join("")}
+    </div></div>
+    ${(s.tags||[]).length ? `<details><summary><span class="pill"><b>${s.tags.length}</b> tags deste vídeo</span></summary><div class="chips" style="margin-top:10px">${s.tags.map(t => `<span class="chip">${esc(t)}</span>`).join("")}</div></details>` : `<span class="pill"><b>0</b> tags deste vídeo</span>`}
+  </section>`;
+}
+
+function formulaHtml(texto){
+  return String(texto || "").split(/(\[[^\]]+\])/).filter(Boolean)
+    .map(p => /^\[.+\]$/.test(p) ? `<span class="slot">${esc(p.slice(1,-1))}</span>` : `<span>${esc(p)}</span>`).join("");
+}
+function patternBox(f, heading){
+  if (!f?.texto) return "";
+  return `<div class="box" style="display:flex;flex-direction:column;gap:6px">
+    <div class="row" style="justify-content:space-between"><div class="k">${esc(heading)}</div><button class="btn small" data-copy-text="${esc(f.texto)}">Copiar</button></div>
+    <div class="formula">${formulaHtml(f.texto)}</div>
+    ${f.pt ? `<div class="t">${esc(f.pt)}</div>` : ""}
+    ${f.exemplos?.length ? `<div class="t">Ex.: ${f.exemplos.slice(0, 2).map(esc).join(" · ")}</div>` : ""}
+  </div>`;
+}
+function aboutHtml(a){
+  const pair = (k, o) => `<div class="box"><div class="k">${k}</div><div class="v">${esc(o?.original || "—")}</div>${o?.pt && o.pt !== o.original ? `<div class="t">${esc(o.pt)}</div>` : ""}</div>`;
+  const formula = formulaHtml(a.formula?.texto);
+  return `<h2>${a.formula ? "Do que é o vídeo" : "Do que é o tema"}</h2>
+    <div class="grid4" style="margin-top:8px">${pair("Nicho", a.nicho)}${pair("Subnicho", a.subnicho)}${pair("Micro subnicho", a.micro_subnicho)}${pair("Época", { original: a.epoca })}${pair("Tema", a.tema)}${pair("Subtema", a.subtema)}</div>
+    ${a.canal ? `<div class="grid4" style="margin-top:8px">${pair("Subnicho do canal", a.canal.subnicho)}${pair("Micro subnicho do canal", a.canal.micro_subnicho)}</div>` : ""}
+    ${a.formula ? `<div class="box" style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+      <div class="row" style="justify-content:space-between"><div class="k">Fórmula do título deste vídeo</div><button class="btn small" data-copy="formula">Copiar</button></div>
+      <div class="formula">${formula || "—"}</div>
+      ${a.formula?.pt ? `<div class="t">${esc(a.formula.pt)}</div>` : ""}
+      ${a.gancho ? `<div class="t">${esc(a.gancho)}</div>` : ""}
+    </div>` : ""}
+    ${(a.titulos||[]).length ? `<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px"><h2>Títulos para você</h2>
+      <ul class="titles">${a.titulos.map((t,i) => `<li><span>${esc(t)}</span><button class="btn small" data-copy-title="${i}">Copiar</button></li>`).join("")}</ul></div>` : ""}
+    ${a.formula && a.nicho?.original ? `<div class="row" style="margin-top:12px"><button class="btn" data-explore-video="1">Ver os temas que mais rendem neste micro subnicho</button></div>` : ""}`;
+}
+
+function similarCard(v, ch){
+  const s = v.snippet, views = +v.statistics.viewCount || 0;
+  const vph = views / hoursSince(s.publishedAt);
+  const subs = ch?.statistics?.hiddenSubscriberCount ? null : +ch?.statistics?.subscriberCount;
+  const ratio = subs ? views / subs : null;
+  const fresh = hoursSince(s.publishedAt) < 72;
+  return `<div class="item">
+    <a class="thumb" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener" aria-label="Abrir no YouTube">${fresh ? `<span class="new">Novidade</span>` : ""}<img loading="lazy" src="${esc((s.thumbnails?.medium || s.thumbnails?.default || {}).url || "")}" alt=""><span class="dur">${parseDur(v.contentDetails.duration)}</span></a>
+    <div style="min-width:0">
+      <h3><a href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${esc(s.title)}</a></h3>
+      <div class="meta">
+        <span>${esc(s.channelTitle)}${subs ? " · " + fmtN(subs) + " inscritos" : ""}</span>
+        <span class="date" style="font-size:13px">${fmtDate(s.publishedAt)} · ${ago(s.publishedAt)}</span>
+        <span>${fmtN(views)} views</span>
+      </div>
+      <div class="tags">
+        <span class="tag ${vph >= 1000 ? "hot" : ""}">${fmtN(vph)} VPH</span>
+        ${ratio ? `<span class="tag ${ratio >= 3 ? "hot" : ""}">${ratio.toLocaleString("pt-BR",{maximumFractionDigits:1})}× inscritos</span>` : ""}
+      </div>
+      <div class="row" style="margin-top:8px">
+        <a class="btn small" href="https://www.youtube.com/watch?v=${esc(v.id)}" target="_blank" rel="noopener">Ver vídeo</a>
+        <a class="btn small" href="?v=${esc(v.id)}" target="_blank" rel="noopener">Analisar em nova aba</a>
+        <button class="btn small" data-copy-sim="${esc(v.id)}">Copiar título</button></div>
+    </div>
+  </div>`;
+}
+function renderSimilar(){
+  const box = $("#similarList"); if (!box) return;
+  const items = showRemoved ? [...lastSimilar, ...lastRemoved] : [...lastSimilar];
+  const key = { vph: x => x.vph, views: x => x.views, date: x => +new Date(x.v.snippet.publishedAt), ratio: x => x.ratio || 0 }[sortBy];
+  items.sort((a,b) => key(b) - key(a));
+  box.innerHTML = (items.length ? items.map(x => similarCard(x.v, x.ch)).join("") : `<p class="hint">Nenhum vídeo parecido nesse período. Tente "em qualquer data" ou outra duração.</p>`)
+    + (lastRemoved.length ? `<button class="btn small" data-removed="1" style="align-self:flex-start">${showRemoved ? "Esconder" : "Mostrar"} os ${lastRemoved.length} que o filtro tirou por serem de outro assunto</button>` : "");
+  document.querySelectorAll("#sortSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.sort === sortBy)));
+  const pb = $("#patternBox"); if (pb) pb.innerHTML = patternBox(lastPattern, "Estrutura de título padrão deste tema");
+}
+function similarShell(queries, title = "Parecidas no YouTube"){
+  return `<section class="card" id="similar">
+    <div class="toolbar"><h2>${esc(title)}</h2>
+      <div class="seg" id="sortSeg" role="group" aria-label="Ordenar">
+        <button type="button" data-sort="vph">VPH</button><button type="button" data-sort="views">Views</button>
+        <button type="button" data-sort="ratio">× inscritos</button><button type="button" data-sort="date">Mais novas</button></div></div>
+    ${queries?.length ? `<p class="hint">Buscas usadas: ${queries.map(q => `<code>${esc(q)}</code>`).join(" ")}</p>` : ""}
+    <div id="patternBox"></div>
+    <div class="list" id="similarList"><div class="skel" style="width:90%"></div><div class="skel" style="width:70%"></div><div class="skel" style="width:80%"></div></div>
+  </section>`;
+}
+function rowOf(v, chans){
+  const views = +v.statistics.viewCount || 0, ch = chans[v.snippet.channelId];
+  const subs = ch?.statistics?.hiddenSubscriberCount ? null : +ch?.statistics?.subscriberCount;
+  const likes = +v.statistics.likeCount || 0, comments = +v.statistics.commentCount || 0;
+  return { v, ch, views, vph: views / hoursSince(v.snippet.publishedAt), ratio: subs ? views/subs : null, eng: views ? (likes + comments) / views : null };
+}
+let lastPattern = null;
+async function loadSimilar(queries, exclude, lang, context){
+  lastPattern = null;
+  const ids = [];
+  for (const q of queries.slice(0,3)){
+    for (const id of await searchVideos(q, exclude, lang)) if (!ids.includes(id)) ids.push(id);
+  }
+  let vids = await getVideos(ids.slice(0,45));
+  let removedVids = [];
+  if (context && vids.length){
+    try {
+      const r = await gemini(filterPrompt(context, vids), "filter");
+      lastPattern = r.formula_padrao || null;
+      const keep = new Set((r.manter || []).map(Number));
+      removedVids = vids.filter((_, i) => !keep.has(i));
+      vids = vids.filter((_, i) => keep.has(i));
+    } catch { /* if the filter fails, show everything */ }
+  }
+  const chans = await getChannels([...vids, ...removedVids].map(v => v.snippet.channelId));
+  const wrap = v => rowOf(v, chans);
+  lastSimilar = vids.map(wrap); lastRemoved = removedVids.map(wrap); showRemoved = false;
+  renderSimilar();
+}
+
+const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2; };
+let rankState = null;
+const PERIOD_TEXT = { 7:"na última semana", 30:"no último mês", 90:"nos últimos 3 meses", 365:"no último ano", 0:"em qualquer data" };
+async function explore(){
+  const p = readPath();
+  if (!p.nicho) throw new ApiError("Nicho", "Escolha ou escreva um nicho na primeira caixa.");
+  if (mode === "tema" && !p.tema) throw new ApiError("Tema", "Escreva o tema na caixa de baixo.");
+  const level = nextLevel(p), plural = LEVEL_PLURAL[level];
+  out.innerHTML = `<section class="card"><h2>Procurando os ${plural} que mais estão rendendo…</h2><p class="hint">O Gemini sugere 6 opções e o YouTube mostra como os vídeos de cada uma estão indo. Leva uns 20 segundos.</p><div class="skel" style="width:70%"></div><div class="skel" style="width:85%"></div><div class="skel" style="width:60%"></div></section>`;
+  const { itens = [] } = await gemini(candidatesPrompt(p, level), "candidates");
+  if (!itens.length) throw new ApiError("Gemini", "O Gemini não sugeriu nenhuma opção. Tente escrever o nicho de outro jeito.");
+  const lang = marketInfo().lang, groups = [];
+  for (const item of itens.slice(0, 6)) groups.push({ item, ids: await searchVideos(item.busca || item.nome?.original || p.nicho, new Set(), lang, 15) });
+  const all = await getVideos([...new Set(groups.flatMap(g => g.ids))]);
+  const byId = Object.fromEntries(all.map(v => [v.id, v]));
+  groups.forEach(g => { g.vids = g.ids.map(id => byId[id]).filter(Boolean); });
+  try {
+    const r = await gemini(groupFilterPrompt(p, level, groups), "groupfilter");
+    groups.forEach((g, gi) => { g.formula = r.formulas?.[gi] ?? r.formulas?.[String(gi)] ?? null; const keep = r.grupos?.[gi] ?? r.grupos?.[String(gi)];
+      if (Array.isArray(keep)){ const k = new Set(keep.map(Number)); g.removed = g.vids.filter((_, i) => !k.has(i)); g.vids = g.vids.filter((_, i) => k.has(i)); } });
+  } catch { /* without the filter, rank on everything */ }
+  const chans = await getChannels(groups.flatMap(g => [...g.vids, ...(g.removed || [])].map(v => v.snippet.channelId)));
+  for (const g of groups){
+    g.rows = g.vids.map(v => rowOf(v, chans)); g.removedRows = (g.removed || []).map(v => rowOf(v, chans));
+    g.m = { n: g.rows.length, vph: median(g.rows.map(r => r.vph)), ratio: median(g.rows.map(r => r.ratio).filter(x => x != null)),
+      eng: median(g.rows.map(r => r.eng).filter(x => x != null)), virais: g.rows.filter(r => r.ratio >= 3).length };
+    g.best = [...g.rows].sort((a, b) => (b.ratio || 0) - (a.ratio || 0))[0];
+  }
+  const max = k => Math.max(1e-9, ...groups.map(g => g.m[k] || 0));
+  const mx = { vph: max("vph"), ratio: max("ratio"), eng: max("eng"), virais: Math.max(1, ...groups.map(g => g.m.virais)) };
+  for (const g of groups){
+    const raw = 0.35*(g.m.ratio || 0)/mx.ratio + 0.35*(g.m.vph || 0)/mx.vph + 0.2*(g.m.eng || 0)/mx.eng + 0.1*g.m.virais/mx.virais;
+    g.score = Math.round(100 * raw * Math.min(1, g.m.n / 4));
+  }
+  groups.sort((a, b) => b.score - a.score);
+  rankState = { p, level, groups };
+  out.innerHTML = rankHtml(rankState);
+}
+function rankHtml({ p, level, groups }){
+  const plural = LEVEL_PLURAL[level], m = marketInfo();
+  const next = { "subnicho":"micro subnichos", "micro subnicho":"temas", "tema":"subtemas" }[level];
+  const pt = o => o?.pt && o.pt !== o.original ? o.pt : "";
+  const pct = n => n == null ? "—" : (n*100).toLocaleString("pt-BR", { maximumFractionDigits:1 }) + "%";
+  return (DEMO ? `<div class="msg" role="note"><b>Exemplo com dados inventados.</b> Coloque suas chaves em <b>Chaves</b> para ver o ranking de verdade.</div>` : "") + `<section class="card" id="rank">
+    <h2>${esc(plural)} que mais estão rendendo</h2>
+    <p class="hint">${esc(pathText(p).replace(/\n/g, " · "))}. Mercado: ${esc(m.label)}. Amostra: até 15 vídeos de cada opção publicados ${esc(PERIOD_TEXT[$("#period").value] || "")}.
+      A nota (0 a 100) junta as medianas de views ÷ inscritos, VPH e engajamento, e quantos vídeos passaram de 3× os inscritos.</p>
+    <div class="rank">${groups.map((g, i) => `<div class="rk">
+      <div class="rk-head"><span class="pos">${i + 1}</span>
+        <div><b>${esc(g.item.nome?.original || "—")}</b>${pt(g.item.nome) ? ` <span class="t">· ${esc(pt(g.item.nome))}</span>` : ""}${g.item.descricao ? `<div class="t">${esc(g.item.descricao)}</div>` : ""}</div>
+        <div class="score">${g.score}<small>nota</small></div></div>
+      <div class="bar" aria-hidden="true"><i style="width:${Math.max(2, g.score)}%"></i></div>
+      <div class="tags">
+        <span class="tag ${g.m.ratio >= 3 ? "hot" : ""}">${g.m.ratio != null ? g.m.ratio.toLocaleString("pt-BR", { maximumFractionDigits:1 }) + "×" : "—"} inscritos (mediana)</span>
+        <span class="tag ${g.m.vph >= 1000 ? "hot" : ""}">${fmtN(g.m.vph)} VPH (mediana)</span>
+        <span class="tag">${pct(g.m.eng)} engaj.</span>
+        <span class="tag ${g.m.virais ? "hot" : ""}">${g.m.virais} virais</span>
+        <span class="tag">${g.m.n} vídeos</span>
+      </div>
+      ${g.formula?.texto ? `<div class="best">Título padrão: <span class="formula" style="display:inline-flex">${formulaHtml(g.formula.texto)}</span></div>` : ""}
+      ${g.best ? `<div class="best">Destaque: <b>${esc(g.best.v.snippet.title)}</b> · ${esc(g.best.v.snippet.channelTitle)} · ${fmtN(g.best.views)} views</div>` : `<div class="best">Nenhum vídeo desse assunto no período.</div>`}
+      <div class="row">${g.m.n ? `<button class="btn small" data-gvideos="${i}">Ver vídeos (${g.m.n})</button>` : ""}${next ? `<button class="btn small" data-drill="${i}">Ver ${next} disto</button>` : ""}</div>
+    </div>`).join("")}</div>
+  </section><div id="simWrap"></div>`;
+}
+function showGroup(i){
+  const g = rankState?.groups[i]; if (!g) return;
+  $("#simWrap").innerHTML = similarShell([g.item.busca], "Vídeos de " + (g.item.nome?.original || ""));
+  lastSimilar = g.rows; lastRemoved = g.removedRows || []; showRemoved = false; lastPattern = g.formula; renderSimilar();
+  $("#similar").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+function drill(i){
+  const g = rankState?.groups[i]; if (!g) return;
+  const name = g.item.nome?.original || "";
+  if (rankState.level === "subnicho") $("#pSub").value = name;
+  else if (rankState.level === "micro subnicho") $("#pMicro").value = name;
+  else if (rankState.level === "tema"){ setMode("tema"); $("#q").value = name; }
+  window.scrollTo({ top:0, behavior:"smooth" });
+  run();
+}
+
+// ---------- main flow ----------
+let current = null, running = false;
+// ---------- back ----------
+const backStack = [];
+let pushedHistory = false, shown = null;
+function markShown(){ shown = { mode, q: $("#q").value, nicho: $("#pNicho").value, sub: $("#pSub").value, micro: $("#pMicro").value }; }
+function snapshot(){
+  if (!out.innerHTML.trim()) return;
+  const f = shown || { mode, q: $("#q").value, nicho: $("#pNicho").value, sub: $("#pSub").value, micro: $("#pMicro").value };
+  backStack.push({ html: out.innerHTML, ...f,
+    rankState, current, lastSimilar, lastRemoved, lastPattern, showRemoved, sortBy, DEMO, y: window.scrollY });
+  if (backStack.length > 20) backStack.shift();
+  try { history.pushState({ radar: backStack.length }, ""); pushedHistory = true; } catch { pushedHistory = false; }
+  $("#btnBack").hidden = false;
+}
+function goBack(){
+  if (running) return;
+  const st = backStack.pop(); if (!st) return;
+  out.innerHTML = st.html;
+  $("#pNicho").value = st.nicho; $("#pSub").value = st.sub; $("#pMicro").value = st.micro;
+  setMode(st.mode); $("#q").value = st.q; updatePathHint();
+  ({ rankState, current, lastSimilar, lastRemoved, lastPattern, showRemoved, sortBy, DEMO } = st);
+  shown = { mode: st.mode, q: st.q, nicho: st.nicho, sub: st.sub, micro: st.micro };
+  $("#btnBack").hidden = !backStack.length;
+  requestAnimationFrame(() => window.scrollTo({ top: st.y }));
+}
+window.addEventListener("popstate", () => { if (backStack.length) goBack(); });
+function needKeys(){
+  const c = cfg();
+  if (DEMO || (c.yt && c.ai)) return false;
+  openCfg(true); out.innerHTML = `<div class="msg err" role="alert"><b>Faltam as chaves:</b> coloque a chave do YouTube e a do Gemini em Chaves. O passo a passo está logo abaixo delas.</div>`;
+  return true;
+}
+async function run(){
+  if (running) return;
+  if (mode === "video"){ const t = $("#q").value.trim(); if (t) analyse(t); return; }
+  if (needKeys()) return;
+  snapshot();
+  running = true; $("#btnGo").disabled = true; $("#btnGo").textContent = "Buscando…";
+  current = null;
+  try { markShown(); await explore(); }
+  catch(e){ out.innerHTML = errBox(e); }
+  finally { running = false; $("#btnGo").disabled = false; setMode(mode); }
+}
+async function analyse(text){
+  if (running) return;
+  if (needKeys()) return;
+  snapshot(); markShown(); shown.mode = "video"; shown.q = text;
+  running = true; $("#btnGo").disabled = true; $("#btnGo").textContent = "Analisando…";
+  current = null;
+  try {
+    const id = videoId(text);
+    if (!id) throw new ApiError("Link", "Não reconheci esse link de vídeo. Para pesquisar um assunto, escolha Tema ou Nicho acima da caixa.");
+    out.innerHTML = `<section class="card"><div class="skel" style="width:60%"></div><div class="skel" style="width:85%"></div></section>`;
+    const [v] = await getVideos([id]);
+    if (!v) throw new ApiError("YouTube", "Não achei esse vídeo. Ele pode ser privado ou o link estar errado.");
+    const chans = await getChannels([v.snippet.channelId]);
+    const ch = chans[v.snippet.channelId];
+    const { median, titles: recentTitles } = await channelRecent(ch, id).catch(() => ({ median:null, titles:[] }));
+    current = { v, about: null };
+    out.innerHTML = (DEMO ? `<div class="msg" role="note"><b>Exemplo com dados inventados.</b> Coloque suas chaves em <b>Chaves</b> e cole o link de um vídeo para analisar de verdade.</div>` : "") + mainCard(v, ch, median) + `<div id="simWrap"></div>`;
+    let about;
+    try { about = await gemini(classifyPrompt(v, recentTitles)); current.about = about; $("#about").innerHTML = aboutHtml(about); }
+    catch(e){ $("#about").innerHTML = `<h2>Do que é o vídeo</h2>` + errBox(e); }
+    const queries = [titleQuery(v.snippet.title), ...(about?.buscas || []).slice(0, 2).map(String)];
+    $("#simWrap").innerHTML = similarShell(queries);
+    try { await loadSimilar(queries, new Set([id]), about?.idioma_video || v.snippet.defaultAudioLanguage, about ? contextOf(about, v.snippet.title) : ""); }
+    catch(e){ $("#similarList").innerHTML = errBox(e); }
+  } catch(e){
+    if (!$("#similarList") || !current) out.innerHTML = errBox(e); else $("#similarList").innerHTML = errBox(e);
+  } finally {
+    running = false; $("#btnGo").disabled = false; setMode(mode);
+  }
+}
+
+// ---------- events ----------
+function openCfg(open){ $("#cfg").hidden = !open; $("#btnCfg").setAttribute("aria-expanded", String(open)); if (open) showQuota(); }
+const PLACEHOLDER = { video:"Cole o link de um vídeo do YouTube", tema:"Escreva o tema (ex.: Goûters des années 80)", nicho:"" };
+function updatePathHint(){
+  if (mode === "video"){ $("#pathHint").hidden = true; return; }
+  const p = readPath(), level = nextLevel(p);
+  $("#pathHint").hidden = false;
+  $("#pathHint").textContent = `Vai mostrar os ${LEVEL_PLURAL[level]} que mais estão rendendo${p.tema ? " dentro do tema" : p.micro ? " dentro do micro subnicho" : p.subnicho ? " dentro do subnicho" : " dentro do nicho"}. Quanto mais caixas você preencher, mais específico fica.`;
+  $("#btnGo").textContent = `Ver ${LEVEL_PLURAL[level]} em alta`;
+}
+function setMode(m){
+  mode = m; $("#q").placeholder = PLACEHOLDER[m];
+  document.querySelectorAll("#modeSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
+  $("#pathRow").hidden = m === "video";
+  $("#q").hidden = m === "nicho";
+  $("#btnGo").textContent = "Analisar";
+  updatePathHint();
+}
+["#pNicho", "#pSub", "#pMicro", "#q"].forEach(s => $(s).addEventListener("input", updatePathHint));
+$("#market").value = store.get("market", "FR");
+$("#market").addEventListener("change", () => store.set("market", $("#market").value));
+$("#btnDemo").onclick = () => { DEMO = true; setMode("video"); analyse("https://youtu.be/DEMO0000000"); };
+$("#btnBack").onclick = () => { if (running) return; if (pushedHistory) history.back(); else goBack(); };
+$("#btnCfg").onclick = () => openCfg($("#cfg").hidden);
+$("#kYt").value = store.get("yt"); $("#kAi").value = store.get("ai");
+$("#kModel").value = store.get("model", DEFAULT_MODEL) || DEFAULT_MODEL;
+$("#kLang").value = store.get("lang", "Francês");
+$("#btnSave").onclick = () => {
+  store.set("yt", $("#kYt").value.trim()); store.set("ai", $("#kAi").value.trim());
+  store.set("model", $("#kModel").value.trim() || DEFAULT_MODEL); store.set("lang", $("#kLang").value);
+  toast("Chaves salvas"); openCfg(false);
+};
+$("#form").addEventListener("submit", e => { e.preventDefault(); DEMO = !(cfg().yt && cfg().ai); run(); });
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.mode){ setMode(b.dataset.mode); $("#q").focus(); return; }
+  if (b.dataset.sort){ sortBy = b.dataset.sort; renderSimilar(); return; }
+  if (b.dataset.removed){ showRemoved = !showRemoved; renderSimilar(); return; }
+  if (b.dataset.copyText){ copy(b.dataset.copyText, "Estrutura"); return; }
+  if (b.dataset.gvideos){ showGroup(+b.dataset.gvideos); return; }
+  if (b.dataset.drill){ drill(+b.dataset.drill); return; }
+  if (b.dataset.exploreVideo && current?.about){ const a = current.about;
+    $("#pNicho").value = a.nicho?.original || ""; $("#pSub").value = a.subnicho?.original || ""; $("#pMicro").value = a.micro_subnicho?.original || "";
+    setMode("nicho"); window.scrollTo({ top:0, behavior:"smooth" }); run(); return; }
+  if (b.dataset.analyse){ setMode("video"); $("#q").value = "https://youtu.be/" + b.dataset.analyse; window.scrollTo({ top:0, behavior:"smooth" }); analyse($("#q").value); return; }
+  if (b.dataset.jump){ document.getElementById(b.dataset.jump)?.scrollIntoView({ behavior:"smooth" }); return; }
+  if (b.dataset.copySim){ const x = lastSimilar.find(x => x.v.id === b.dataset.copySim); if (x) copy(x.v.snippet.title, "Título"); return; }
+  if (b.dataset.copyTitle !== undefined && current?.about){ copy(current.about.titulos[+b.dataset.copyTitle], "Título"); return; }
+  if (!current?.v) return;
+  const s = current.v.snippet;
+  if (b.dataset.copy === "title") copy(s.title, "Título");
+  if (b.dataset.copy === "tags") copy((s.tags || []).join(", "), "Tags");
+  if (b.dataset.copy === "desc") copy(s.description || "", "Descrição");
+  if (b.dataset.copy === "formula" && current.about) copy(current.about.formula?.texto || "", "Fórmula");
+});
+const qs = new URLSearchParams(location.search).get("v");
+if (qs){ if (qs.startsWith("DEMO")) DEMO = true; $("#q").value = qs; analyse(qs); }
+else if (location.hash === "#exemplo" || !cfg().yt || !cfg().ai){
+  if (!cfg().yt || !cfg().ai) openCfg(true);
+  DEMO = true; analyse("https://youtu.be/DEMO0000000");
+}
+</script>
+</body>
+</html>

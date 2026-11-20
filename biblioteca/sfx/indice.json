@@ -1,0 +1,57 @@
+{
+ "batida/batida_suave_01": {
+  "duracao": 0.35,
+  "tempo_ate_pico": 0.016,
+  "origem": "síntese própria (sem licença de terceiros)"
+ },
+ "papel/papel_rasga_01": {
+  "duracao": 0.7,
+  "tempo_ate_pico": 0.508,
+  "origem": "síntese própria (sem licença de terceiros)"
+ },
+ "fita/fita_cola_01": {
+  "duracao": 0.22,
+  "tempo_ate_pico": 0.008,
+  "origem": "síntese própria (sem licença de terceiros)"
+ },
+ "fita/fita_bate_01": {
+  "duracao": 0.4,
+  "tempo_ate_pico": 0.016,
+  "origem": "síntese própria (sem licença de terceiros)"
+ },
+ "whoosh/whoosh_suave_01": {
+  "duracao": 0.9,
+  "tempo_ate_pico": 0.584,
+  "origem": "síntese própria (sem licença de terceiros)"
+ },
+ "sino/tilintar_luzes_01": {
+  "duracao": 1.0,
+  "tempo_ate_pico": 0.398,
+  "origem": "síntese própria (sem licença de terceiros)"
+ },
+ "maquina/tv_liga_01": {
+  "duracao": 0.7,
+  "tempo_ate_pico": 0.007,
+  "origem": "síntese própria (sem licença de terceiros)"
+ },
+ "ambiente/vento_gelado_01": {
+  "duracao": 3.5,
+  "tempo_ate_pico": 0.807,
+  "origem": "síntese própria (sem licença de terceiros)"
+ },
+ "impacto/carimbo_01": {
+  "duracao": 0.35,
+  "tempo_ate_pico": 0.007,
+  "origem": "síntese própria (sem licença de terceiros)"
+ },
+ "impacto/grave_apice_01": {
+  "duracao": 1.2,
+  "tempo_ate_pico": 0.022,
+  "origem": "síntese própria (sem licença de terceiros)"
+ },
+ "papel/folhear_jornal_01": {
+  "duracao": 1.25,
+  "tempo_ate_pico": 0.229,
+  "origem": "síntese própria (sem licença de terceiros)"
+ }
+}

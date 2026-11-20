@@ -1,0 +1,52 @@
+name: Lint & Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml jsonschema markdown-it-py
+
+      - name: Validate JSON files
+        run: |
+          find . -name "*.json" -not -path "./.git/*" -not -path "./node_modules/*" | while read f; do
+            python -m json.tool "$f" > /dev/null && echo "✅ $f" || (echo "❌ $f" && exit 1)
+          done
+
+      - name: Validate YAML files
+        run: |
+          find . -name "*.yml" -o -name "*.yaml" | while read f; do
+            python -c "import yaml; yaml.safe_load(open('$f'))" && echo "✅ $f" || (echo "❌ $f" && exit 1)
+          done
+
+      - name: Validate Markdown (basic)
+        run: |
+          find . -name "*.md" -not -path "./.git/*" | while read f; do
+            python -c "import markdown_it; markdown_it.MarkdownIt().parse(open('$f').read())" > /dev/null 2>&1 && echo "✅ $f" || echo "⚠️  $f (non-fatal)"
+          done
+
+      - name: Python syntax check
+        run: |
+          find . -name "*.py" -not -path "./.git/*" -not -path "./venv/*" -not -path "./.venv/*" | while read f; do
+            python -m py_compile "$f" && echo "✅ $f" || (echo "❌ $f" && exit 1)
+          done
+
+      - name: Check shell scripts
+        run: |
+          find . -name "*.sh" -not -path "./.git/*" | while read f; do
+            shellcheck "$f" 2>/dev/null || bash -n "$f" && echo "✅ $f" || (echo "❌ $f" && exit 1)
+          done
