@@ -30,6 +30,8 @@ PAUSA = 1.0
 TENTATIVAS = 4
 LARGURA_MIN_VIDEO = 1280
 LADO_MIN_FOTO = 800
+# filme de arquivo: fora desenho animado (o Popeye e o Caillou entraram assim)
+SEM_DESENHO = " AND NOT (cartoon OR animation OR animated OR popeye OR caillou)"
 
 
 # --------------------------------------------------------------------- utilidades
@@ -178,50 +180,72 @@ def commons(termo: str, quantos: int, contexto=None) -> list[dict]:
 
 # --------------------------------------------------------------------- archive.org
 
-def archive(termo: str, quantos: int, contexto=None, *, ano_ate: int | None = None) -> list[dict]:
+def archive(termo: str, quantos: int, contexto=None, *,
+            colecao: str = "prelinger", ano_de: int = 1930, ano_ate: int = 1975) -> list[dict]:
     """Filmes de época em domínio público (Prelinger e afins).
+
+    Filme de arquivo **não se cataloga por nome de prato**: buscar
+    "vol-au-vent" aqui devolve nada — ou um desenho animado. Busque por tema
+    e época ("cooking", "kitchen", "home economics") dentro de uma coleção.
+    A `prelinger` é a dos filmes domésticos e educativos de 1930–1960.
 
     O arquivo não é baixado: é grande (centenas de MB) e só interessa um
     trecho. Marcado `remoto`, para ser cortado por streaming com ffmpeg.
     """
-    q = f'({termo}) AND mediatype:(movies)'
-    if ano_ate:
-        q += f" AND year:[1900 TO {ano_ate}]"
-    busca = pedir("https://archive.org/advancedsearch.php?" + urllib.parse.urlencode({
-        "q": q, "fl[]": "identifier", "rows": str(max(6, quantos * 3)),
-        "page": "1", "output": "json", "sort[]": "downloads desc"}))
+    consultas = []
+    if colecao:
+        consultas.append(f"collection:({colecao}) AND mediatype:(movies) AND ({termo}){SEM_DESENHO}")
+    consultas.append(f"mediatype:(movies) AND ({termo}) AND year:[{ano_de} TO {ano_ate}]{SEM_DESENHO}")
 
-    saida = []
-    for doc in busca.get("response", {}).get("docs", []):
-        ident = doc.get("identifier")
-        if not ident:
-            continue
-        try:
-            meta = pedir(f"https://archive.org/metadata/{ident}")
-        except Exception:
-            continue
-        time.sleep(PAUSA)
-
-        lic = (meta.get("metadata", {}) or {}).get("licenseurl", "")
-        rights = (meta.get("metadata", {}) or {}).get("rights", "")
-        titulo = (meta.get("metadata", {}) or {}).get("title", ident)
-
-        arq = next((f for f in meta.get("files", [])
-                    if f.get("name", "").lower().endswith((".mp4", ".m4v"))
-                    and f.get("format", "").lower() not in ("thumbnail",)), None)
-        if not arq:
-            continue
-        cand = {"acervo": "archive", "ext": "mp4", "remoto": True,
-                "url": f"https://archive.org/download/{ident}/{urllib.parse.quote(arq['name'])}",
-                "titulo": titulo, "tags": f"{titulo} {ident}",
-                "autor": (meta.get("metadata", {}) or {}).get("creator", ""),
-                "pagina": f"https://archive.org/details/{ident}",
-                "licenca": lic or rights or "conferir na página do item",
-                "largura": None, "altura": None}
-        if relevante(cand, termo, contexto):
-            saida.append(cand)
+    vistos, saida = set(), []
+    for q in consultas:
         if len(saida) >= quantos:
             break
+        try:
+            busca = pedir("https://archive.org/advancedsearch.php?" + urllib.parse.urlencode({
+                "q": q, "fl[]": "identifier", "rows": str(max(8, quantos * 4)),
+                "page": "1", "output": "json", "sort[]": "downloads desc"}))
+        except Exception:
+            continue
+
+        for doc in busca.get("response", {}).get("docs", []):
+            ident = doc.get("identifier")
+            if not ident or ident in vistos:
+                continue
+            vistos.add(ident)
+            try:
+                meta = pedir(f"https://archive.org/metadata/{ident}")
+            except Exception:
+                continue
+            time.sleep(PAUSA)
+
+            m = meta.get("metadata", {}) or {}
+            titulo = m.get("title", ident)
+            assunto = m.get("subject", "")
+            if isinstance(assunto, list):
+                assunto = " ".join(assunto)
+            descricao = re.sub(r"<[^>]+>", " ", str(m.get("description", "")))[:700]
+
+            arq = next((f for f in meta.get("files", [])
+                        if f.get("name", "").lower().endswith((".mp4", ".m4v"))
+                        and f.get("format", "").lower() not in ("thumbnail",)), None)
+            if not arq:
+                continue
+            cand = {
+                "acervo": "archive", "ext": "mp4", "remoto": True,
+                "url": f"https://archive.org/download/{ident}/{urllib.parse.quote(arq['name'])}",
+                "titulo": titulo, "ano": m.get("year", ""),
+                # título + assunto + descrição: só pelo título quase tudo seria
+                # rejeitado, porque o tema do filme raramente está no nome dele
+                "tags": f"{titulo} {assunto} {descricao} {ident}",
+                "autor": m.get("creator", ""),
+                "pagina": f"https://archive.org/details/{ident}",
+                "licenca": m.get("licenseurl") or m.get("rights") or "domínio público (conferir na página)",
+                "largura": None, "altura": None}
+            if relevante(cand, termo, contexto):
+                saida.append(cand)
+            if len(saida) >= quantos:
+                break
     return saida
 
 

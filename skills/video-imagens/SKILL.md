@@ -21,8 +21,38 @@ O Claude **busca sozinho** fotos e vídeos, **escolhe a melhor opção** de cada
   | ~~Pexels API~~ (`api.pexels.com`) — **emissão de chaves pausada pela Pexels em 04/11; sem chave por enquanto** | fotos e vídeos atuais, objetos, texturas | chave guardada como **Network secret** (cabeçalho `Authorization`, sem prefixo, site `api.pexels.com`): o proxy coloca a chave sozinho, não mandar cabeçalho de autorização no pedido; arquivos em `images.pexels.com` / `videos.pexels.com` |
   | **Pixabay API** (`pixabay.com/api/`, vídeos em `/api/videos/`) — **banco principal** | fotos e vídeos atuais | a chave vai na URL (`?key=`), então fica como **variável de ambiente** `PIXABAY_API_KEY`; nunca imprimir a URL com a chave; arquivos em `cdn.pixabay.com` |
   | Wikimedia Commons API | fotos de arquivo, época | sem chave; baixar **miniaturas** (`thumb.wikimedia.org`, até ~1920 px) com User-Agent identificado e pausa entre pedidos (originais em `upload.wikimedia.org` dão 429) |
-  | Archive.org (Prelinger etc.) | filmes antigos em domínio público | sem chave; conferir a licença de cada item |
+  | **Archive.org** (coleção `prelinger`) | **filmes de época em domínio público** | sem chave; conferir a licença de cada item |
+  | Library of Congress (`www.loc.gov`, `?fo=json`) | fotos de arquivo, muitas "no known restrictions" | sem chave |
+  | Openverse (`api.openverse.org`) | agregador Creative Commons | sem chave; responde 504 no primeiro pedido às vezes, repetir |
+  | ~~Gallica (BnF)~~ | — | **403 a acesso automatizado**, mesmo com User-Agent de navegador: não insistir |
+  | ~~Europeana~~, ~~Smithsonian~~ | — | exigem chave; sem chave, não usar |
+  | ~~Met Museum~~ | — | API desativada (410 Gone) |
 - Chaves ficam no ambiente (Network secrets ou variável); nunca pedir para colar no chat. Teste rápido do Pexels: `curl -s -o /dev/null -w '%{http_code}' 'https://api.pexels.com/v1/search?query=ink&per_page=1'` → 200 = chave ok, 401 = segredo não configurado. Chave ausente ou domínio bloqueado: diga qual falta e peça para liberar (menu do ambiente → Edit → Network access); busque nos acervos que respondem e deixe os itens afetados como `a_buscar`. **Não** passar a busca para Isabella.
+## Como buscar (aprendido errando em 20/11/2026, no retrovisage-03)
+
+Use `ferramentas/video/buscar_midia.py` com um plano em JSON, e
+`ferramentas/video/folha_contato.py` para a folha. Três regras que custaram três
+rodadas perdidas:
+
+1. **Pesquise o que a palavra significa no idioma da busca, antes de buscar.**
+   `mold` é forma *e* mofo — trouxe morangos estragados para o item do aspic.
+   `souffle` é o prato *e* o sopro. `jelly` é gelatina *e* água-viva. Por isso
+   cada item do plano leva um campo `contexto` com palavras do domínio: sem uma
+   delas nas tags, o candidato é descartado.
+2. **Banco genérico não tem gesto, tem produto.** Buscar `mayonnaise` no Pixabay
+   devolve hambúrguer e batata frita, corretamente etiquetados. O plano pedia o
+   fouet deixando traços no bol — isso não existe lá. Para **gesto e época**, vá
+   ao Archive.org e ao Commons; o Pixabay serve para plano moderno de objeto.
+3. **Filme de arquivo não se cataloga por nome de prato.** `vol-au-vent` no
+   Archive.org devolve nada ou desenho animado. Busque **tema e época, uma
+   palavra forte**: `kitchen`, `gelatin`, `baking`, `dinner`, `recipe`, dentro
+   de `collection:(prelinger)`. O título do filme quase nunca traz o tema, então
+   a relevância é medida pelo assunto e pela descrição, não pelo nome.
+
+Item sem o objeto exato fica **vazio e declarado na lista final** (decisão de
+Isabella, 20/11/2026): folha com buraco é melhor que folha preenchida com o que
+não é.
+
 - **Escolha:** época certa (nada moderno onde a cena é 1960), objeto completo, boa resolução (vídeo ≥ 1280 px de largura), sem marca d'água, sem logo, sem rosto famoso. Preferir objeto isolado/fundo simples (recorta melhor).
 - **Vídeo:** baixar a versão HD (não 4K: pesa no render), cortar o trecho útil (`ffmpeg`), guardar em `_CLAUDE/imagens/videos/vidNNN_v01.mp4`, sem áudio.
 - **Folha de aprovação:** uma imagem com todos os itens; para cada um, a **escolha do Claude (1)** + 2 alternativas; vídeos aparecem como 3 quadros (começo, meio, fim). Isabella responde "tudo ok" ou "img07 2, vid03 busca outro".
