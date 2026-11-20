@@ -37,6 +37,7 @@ fi
 
 cp -r "$ROOT/projects/_templates/pastas" "$DEST"
 find "$DEST" -name .gitkeep -delete
+mkdir -p "$DEST/_CLAUDE"   # estado interno: gitignored, por isso nao vem do template
 
 echo "✅ projects/$SLUG criado: Roteiro/ Narracao/ Imagens/ Musica/ _CLAUDE/"
 echo "Próximo: /video-roteiro → /video-humanizar → /video-iniciar → /video-narrar"
