@@ -29,3 +29,25 @@ Peças-base prontas: `pecas-base/pecas.css` (visual) + `pecas-base/js/pecas.js` 
 - **Folha rasgada**: folha de cor cheia com borda rasgada atravessa a tela (da direita ou subindo) e vira o fundo da cena seguinte. `RV.folhaRasgada` (cn003→004, cn013→014)
 - **Tudo cai de uma vez**: recuo lento a partir de um objeto; na expressão "de uma vez" os recortes caem um atrás do outro (3–10 quadros de intervalo) e a colagem treme. (cn007)
 - **Mergulho na imagem**: a câmera acelera para dentro de um quadro ou objeto (power4.in / power3.in) até a imagem tomar a tela; corte para a cena seguinte. (cn006, cn014)
+## Vídeo de época francês: o que existe e o que não (apurado em 20/11/2026)
+
+**Não existe acervo de vídeo francês da época com licença livre que dê para
+buscar por API.** Apurado no retrovisage-03, tentando os cinco acervos:
+
+| Onde | O que tem | Serve? |
+|---|---|---|
+| Archive.org, longas franceses | `La Traversée de Paris` (1956), `La Poison` (1951), `Mai 68 au Quartier Latin` | **Não** — obras protegidas; trecho vira claim ou strike no YouTube |
+| Archive.org, filmes caseiros | `Ketcham Home Movies: Europe 1951` (Inglaterra, Holanda, Bélgica, França) | **Não** — *"copyright held by the Center for Home Movies"* |
+| Archive.org, coleção `prelinger` | filmes domésticos e educativos **americanos** de 1930–1960 | Só como textura; é família americana, não francesa |
+| INA | o acervo francês de verdade | Sem API aberta |
+| Gallica (BnF) | idem | 403 a acesso automatizado |
+
+**A consequência prática:** os planos de vídeo do mapa viram **foto em
+movimento**, que é o estilo do canal de qualquer forma (`estilo-camera.md`:
+"toda foto se move… parallax em camadas"). O Commons, a Library of Congress e
+o Openverse têm o acervo fotográfico francês de época, com licença declarada.
+
+**A exceção que vale vídeo moderno:** o **close extremo é neutro de época.**
+Manteiga virando noisette na frigideira, vapor saindo da panela, o fouet no
+bol — enquadrado fechado, nada em quadro denuncia o ano. Foi o que sobrou de
+aproveitável do Pixabay no retrovisage-03. Plano aberto moderno, nunca.
