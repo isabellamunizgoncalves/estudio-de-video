@@ -79,6 +79,11 @@ def relevante(cand: dict, termo: str, contexto: list[str] | None = None) -> bool
     mofados da primeira rodada). Com contexto, pelo menos uma das palavras
     do domínio tem de aparecer também.
     """
+    # o termo pode trazer operador de busca (incategory:"Cuisine of France"):
+    # ele restringe a consulta, não descreve o objeto — fora da relevância
+    termo = re.sub(r'\b\w+:"[^"]*"', " ", termo)
+    termo = re.sub(r"\b\w+:\S+", " ", termo)
+
     texto = _simples(" ".join(str(cand.get(c, "")) for c in ("tags", "titulo", "pagina")))
     tokens = set(re.split(r"\W+", texto))
 
