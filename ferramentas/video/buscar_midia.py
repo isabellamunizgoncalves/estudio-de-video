@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Busca fotos e vídeos de apoio para um vídeo, nos acervos com API oficial.
 
-Lê um plano de busca (JSON) e, para cada item, baixa os melhores candidatos de
-cada acervo, anotando fonte e licença. Não escolhe nada: quem escolhe é a
-/video-imagens, olhando a folha de contato.
+Lê um plano de busca (JSON) e, para cada item, baixa os melhores candidatos,
+anotando fonte e licença. Não escolhe nada: quem escolhe é a /video-imagens,
+olhando a folha de contato.
+
+Regra firme: **o item exato, não algo parecido.** Um candidato cujo título ou
+tags não mencionem o termo é descartado. Item sem resultado fica vazio e é
+listado no fim — folha com buraco declarado é melhor que folha preenchida com
+o que não é.
 
 Uso:
     python ferramentas/video/buscar_midia.py \\
@@ -14,190 +19,70 @@ Formato do plano (lista de itens):
     [{"id": "vid01",
       "bloco": "Gancho",
       "descricao": "Uma mão abrindo um armário de cozinha",
-      "tipo": "video",                      # video | foto
-      "acervos": ["pixabay"],               # pixabay | commons
-      "termos": ["opening kitchen cabinet", "main ouvrant placard"]}]
+      "tipo": "video",                          # video | foto
+      "acervos": ["pixabay", "archive"],        # pixabay commons archive loc openverse
+      "termos": ["placard de cuisine", "kitchen cupboard"],
+      "contexto": ["cuisine", "kitchen", "food"]}]   # fecha o cerco em palavra ambígua
 
 Saída:
     <projeto>/_CLAUDE/imagens/busca/candidatos/<id>/<acervo>_<n>.<ext>
-    <projeto>/_CLAUDE/imagens/busca/candidatos.json   (fonte, licença, autor, link)
-
-Acervos e chaves:
-    Pixabay  — chave em PIXABAY_API_KEY (vai na URL; nunca imprimir a URL).
-    Commons  — sem chave; baixa miniaturas de thumb.wikimedia.org com
-               User-Agent identificado e pausa entre pedidos (o original em
-               upload.wikimedia.org responde 429).
+    <projeto>/_CLAUDE/imagens/busca/candidatos.json   (fonte, autor, licença, link)
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 from pathlib import Path
 
-UA = "EstudioDeVideo/1.0 (ferramenta de edicao; contato pelo repositorio)"
-PAUSA = 1.2           # segundos entre pedidos ao mesmo acervo
-TENTATIVAS = 3
-LARGURA_MIN_VIDEO = 1280
-LADO_MIN_FOTO = 800
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import acervos  # noqa: E402
 
-
-# --------------------------------------------------------------------------- rede
-
-def _pedir(url: str, *, binario: bool = False):
-    """GET com User-Agent e repetição em erro temporário."""
-    ultimo = None
-    for tentativa in range(TENTATIVAS):
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": UA})
-            with urllib.request.urlopen(req, timeout=60) as r:
-                dados = r.read()
-            return dados if binario else json.loads(dados.decode())
-        except urllib.error.HTTPError as e:
-            ultimo = e
-            if e.code in (429, 500, 502, 503, 504):
-                time.sleep(PAUSA * (tentativa + 2))
-                continue
-            raise
-        except (urllib.error.URLError, TimeoutError) as e:
-            ultimo = e
-            time.sleep(PAUSA * (tentativa + 2))
-    raise RuntimeError(f"falhou depois de {TENTATIVAS} tentativas: {ultimo}")
-
-
-# ----------------------------------------------------------------------- pixabay
-
-def _pixabay(termo: str, tipo: str, quantos: int) -> list[dict]:
-    """Candidatos do Pixabay. Vídeo: versão HD (nunca 4K, pesa no render)."""
-    base = "https://pixabay.com/api/videos/" if tipo == "video" else "https://pixabay.com/api/"
-    params = {
-        "key": os.environ.get("PIXABAY_API_KEY", "dummy"),
-        "q": termo,
-        "per_page": str(max(3, min(quantos * 3, 50))),
-        "safesearch": "true",
-    }
-    if tipo == "foto":
-        params["image_type"] = "photo"
-    dados = _pedir(base + "?" + urllib.parse.urlencode(params))
-
-    saida = []
-    for hit in dados.get("hits", []):
-        if tipo == "video":
-            vs = hit.get("videos", {})
-            # 'large' costuma ser 1920; 'medium' 1280. Evitar 4K.
-            escolha = None
-            for nome in ("large", "medium", "small"):
-                v = vs.get(nome) or {}
-                if v.get("url") and 0 < v.get("width", 0) <= 1920:
-                    escolha = v
-                    break
-            if not escolha or escolha.get("width", 0) < LARGURA_MIN_VIDEO:
-                continue
-            saida.append({
-                "url": escolha["url"], "largura": escolha.get("width"),
-                "altura": escolha.get("height"), "ext": "mp4",
-            })
-        else:
-            if min(hit.get("imageWidth", 0), hit.get("imageHeight", 0)) < LADO_MIN_FOTO:
-                continue
-            saida.append({
-                "url": hit.get("largeImageURL"), "largura": hit.get("imageWidth"),
-                "altura": hit.get("imageHeight"), "ext": "jpg",
-            })
-        saida[-1].update({
-            "acervo": "pixabay", "autor": hit.get("user"),
-            "pagina": hit.get("pageURL"),
-            "licenca": "Pixabay Content License (uso comercial livre, crédito não obrigatório)",
-        })
-        if len(saida) >= quantos:
-            break
-    return saida
-
-
-# ----------------------------------------------------------------------- commons
-
-def _commons(termo: str, quantos: int) -> list[dict]:
-    """Candidatos do Wikimedia Commons, como miniatura de até 1600 px."""
-    busca = _pedir("https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode({
-        "action": "query", "list": "search", "srsearch": termo,
-        "srnamespace": "6", "srlimit": str(quantos * 2), "format": "json",
-    }))
-    titulos = [h["title"] for h in busca.get("query", {}).get("search", [])]
-    if not titulos:
-        return []
-    time.sleep(PAUSA)
-
-    info = _pedir("https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode({
-        "action": "query", "titles": "|".join(titulos[:20]),
-        "prop": "imageinfo", "iiprop": "url|size|extmetadata",
-        "iiurlwidth": "1600", "format": "json",
-    }))
-
-    saida = []
-    for pag in info.get("query", {}).get("pages", {}).values():
-        ii = (pag.get("imageinfo") or [{}])[0]
-        if not ii.get("thumburl"):
-            continue
-        meta = ii.get("extmetadata", {})
-        if min(ii.get("width", 0), ii.get("height", 0)) < LADO_MIN_FOTO:
-            continue
-        # a thumburl traz query string (?utm_...): a extensão sai só do caminho
-        caminho = urllib.parse.urlparse(ii["thumburl"]).path
-        saida.append({
-            "url": ii["thumburl"], "ext": Path(caminho).suffix.lstrip(".").lower() or "jpg",
-            "largura": ii.get("thumbwidth"), "altura": ii.get("thumbheight"),
-            "acervo": "commons", "titulo": pag.get("title"),
-            "autor": _texto(meta.get("Artist")), "pagina": ii.get("descriptionurl"),
-            "licenca": _texto(meta.get("LicenseShortName")) or "ver página do arquivo",
-        })
-        if len(saida) >= quantos:
-            break
-    return saida
-
-
-def _texto(campo) -> str:
-    """extmetadata vem com HTML; tira as tags para caber no creditos.json."""
-    import re
-    if not campo:
-        return ""
-    return re.sub(r"<[^>]+>", "", str(campo.get("value", ""))).strip()
-
-
-# -------------------------------------------------------------------- download
 
 def _baixar(url: str, destino: Path) -> bool:
     try:
-        destino.write_bytes(_pedir(url, binario=True))
-        return destino.stat().st_size > 1024
+        destino.write_bytes(acervos.pedir(url, binario=True))
+        return destino.stat().st_size > 2048
     except Exception as e:
-        print(f"    ! download falhou: {e}", file=sys.stderr)
+        print(f"    ! download falhou: {str(e)[:90]}", file=sys.stderr)
         destino.unlink(missing_ok=True)
         return False
 
 
-def _cortar(video: Path, segundos: float) -> None:
+def _cortar_local(video: Path, segundos: float) -> None:
     """Corta o trecho útil e tira o áudio (o som é da /video-som)."""
-    saida = video.with_name(video.stem + "_corte.mp4")
+    saida = video.with_name(video.stem + "_c.mp4")
     r = subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video),
          "-t", str(segundos), "-an", "-c:v", "libx264", "-preset", "veryfast",
-         "-crf", "20", str(saida)],
-        capture_output=True, text=True)
+         "-crf", "20", str(saida)], capture_output=True, text=True)
     if r.returncode == 0 and saida.exists():
         video.unlink()
         saida.rename(video)
     else:
-        print(f"    ! corte falhou em {video.name}: {r.stderr.strip()[:120]}", file=sys.stderr)
+        print(f"    ! corte falhou: {r.stderr.strip()[:110]}", file=sys.stderr)
 
 
-# ------------------------------------------------------------------------ main
+def _cortar_remoto(url: str, destino: Path, segundos: float, inicio: float) -> bool:
+    """Filme de arquivo: centenas de MB, e só interessa um trecho.
+
+    O ffmpeg busca a posição direto na URL (o archive.org aceita pedidos por
+    faixa), então nada é baixado inteiro.
+    """
+    r = subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-ss", str(inicio), "-i", url,
+         "-t", str(segundos), "-an", "-c:v", "libx264", "-preset", "veryfast",
+         "-crf", "20", "-vf", "scale='min(1920,iw)':-2", str(destino)],
+        capture_output=True, text=True, timeout=420)
+    if r.returncode == 0 and destino.exists() and destino.stat().st_size > 2048:
+        return True
+    print(f"    ! corte remoto falhou: {r.stderr.strip()[:110]}", file=sys.stderr)
+    destino.unlink(missing_ok=True)
+    return False
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
@@ -206,6 +91,8 @@ def main() -> int:
     ap.add_argument("--plano", required=True, type=Path)
     ap.add_argument("--por-item", type=int, default=3, help="candidatos por item (padrão 3)")
     ap.add_argument("--duracao", type=float, default=5.0, help="segundos do corte de vídeo")
+    ap.add_argument("--inicio-arquivo", type=float, default=60.0,
+                    help="de que segundo cortar o filme de arquivo (padrão 60: pula a abertura)")
     ap.add_argument("--so", nargs="*", help="rodar só estes ids")
     args = ap.parse_args()
 
@@ -215,54 +102,71 @@ def main() -> int:
 
     raiz = args.projeto / "_CLAUDE" / "imagens" / "busca"
     (raiz / "candidatos").mkdir(parents=True, exist_ok=True)
-    registro: dict[str, list[dict]] = {}
+    arq_registro = raiz / "candidatos.json"
+    registro = (json.loads(arq_registro.read_text(encoding="utf-8"))
+                if arq_registro.exists() else {})
 
     for item in plano:
         idn, tipo = item["id"], item.get("tipo", "foto")
         pasta = raiz / "candidatos" / idn
         pasta.mkdir(exist_ok=True)
-        print(f"[{idn}] {tipo}: {item['descricao'][:60]}")
+        print(f"[{idn}] {tipo}: {item['descricao'][:58]}")
 
         achados: list[dict] = []
-        for acervo in item.get("acervos", ["pixabay"]):
+        vistos: set[str] = set()
+        for nome_acervo in item.get("acervos", ["pixabay"]):
+            buscador = acervos.BUSCADORES.get(nome_acervo)
+            if not buscador:
+                print(f"    ! acervo desconhecido: {nome_acervo}", file=sys.stderr)
+                continue
             for termo in item.get("termos", []):
                 if len(achados) >= args.por_item:
                     break
+                falta = args.por_item - len(achados)
                 try:
-                    novos = (_commons(termo, args.por_item - len(achados)) if acervo == "commons"
-                             else _pixabay(termo, tipo, args.por_item - len(achados)))
+                    ctx = item.get("contexto")
+                    novos = (buscador(termo, tipo, falta, ctx) if nome_acervo == "pixabay"
+                             else buscador(termo, falta, ctx))
                 except Exception as e:
-                    print(f"    ! {acervo} '{termo}': {e}", file=sys.stderr)
+                    print(f"    ! {nome_acervo} '{termo}': {str(e)[:80]}", file=sys.stderr)
                     novos = []
                 for n in novos:
+                    chave = n.get("pagina") or n.get("url")
+                    if chave in vistos:
+                        continue
+                    vistos.add(chave)
                     n["termo"] = termo
-                achados.extend(novos)
-                time.sleep(PAUSA)
+                    achados.append(n)
+                time.sleep(acervos.PAUSA)
 
         guardados = []
         for n, cand in enumerate(achados[: args.por_item], 1):
             alvo = pasta / f"{cand['acervo']}_{n}.{cand['ext']}"
-            if not _baixar(cand["url"], alvo):
-                continue
-            if tipo == "video":
-                _cortar(alvo, args.duracao)
+            if cand.get("remoto"):
+                if not _cortar_remoto(cand["url"], alvo, args.duracao, args.inicio_arquivo):
+                    continue
+            else:
+                if not _baixar(cand["url"], alvo):
+                    continue
+                if tipo == "video":
+                    _cortar_local(alvo, args.duracao)
             cand["arquivo"] = str(alvo.relative_to(args.projeto))
-            cand.pop("url", None)          # a URL direta do CDN expira; a página fica
+            cand.pop("url", None)        # a URL do CDN expira; a página do item fica
             guardados.append(cand)
-            print(f"    {n}. {cand['acervo']} — {cand.get('licenca','')[:48]}")
+            print(f"    {n}. {cand['acervo']} — {str(cand.get('licenca', ''))[:46]}")
 
         if not guardados:
-            print("    (nenhum candidato — refazer com outros termos)")
+            print("    (vazio — o item exato não apareceu em nenhum acervo)")
         registro[idn] = guardados
 
-    (raiz / "candidatos.json").write_text(
-        json.dumps(registro, ensure_ascii=False, indent=2), encoding="utf-8")
+    arq_registro.write_text(json.dumps(registro, ensure_ascii=False, indent=2),
+                            encoding="utf-8")
 
     total = sum(len(v) for v in registro.values())
-    vazios = [k for k, v in registro.items() if not v]
-    print(f"\n{total} candidatos em {len(registro)} itens → {raiz/'candidatos.json'}")
+    vazios = sorted(k for k, v in registro.items() if not v)
+    print(f"\n{total} candidatos em {len(registro)} itens → {arq_registro}")
     if vazios:
-        print(f"sem resultado: {', '.join(vazios)}")
+        print(f"SEM RESULTADO ({len(vazios)}): {', '.join(vazios)}")
     return 0
 
 

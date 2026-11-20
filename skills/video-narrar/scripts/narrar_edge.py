@@ -13,6 +13,7 @@ Requer: pip install edge-tts · ffmpeg no sistema · internet (o texto é enviad
 import argparse
 import asyncio
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -26,6 +27,15 @@ except ImportError:
     sys.exit("❌ Falta o pacote edge-tts: .venv-edicao/bin/pip install edge-tts")
 
 SR = 24000  # taxa nativa do Edge TTS
+
+# Sessão atrás de proxy (Claude Code na nuvem): o edge_tts usa aiohttp, que não
+# lê HTTPS_PROXY sozinho e não confia no CA do proxy. Sem isto, o erro é
+# "certificate verify failed: self-signed certificate in certificate chain".
+PROXY = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+_CA = Path("/root/.ccr/ca-bundle.crt")
+if _CA.exists():
+    os.environ.setdefault("SSL_CERT_FILE", str(_CA))
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", str(_CA))
 
 
 def args():
@@ -62,7 +72,7 @@ async def gerar_todos(blocos, voz, rate, tmp, paralelo):
         async with sem:
             for tentativa in range(4):
                 try:
-                    await edge_tts.Communicate(texto, voz, rate=rate).save(str(tmp / f"{i:04d}.mp3"))
+                    await edge_tts.Communicate(texto, voz, rate=rate, proxy=PROXY).save(str(tmp / f"{i:04d}.mp3"))
                     return
                 except Exception:
                     if tentativa == 3:
